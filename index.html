@@ -70,7 +70,6 @@ svg.escena{display:block;width:100vw;height:100vh}
 
   <!-- Panel arriba a la derecha, entre el barril y el logo -->
   <g text-anchor="middle">
-    <text id="nombre" x="1410" y="110" font-family="Bungee, Impact, sans-serif" font-size="52" fill="#fbe7b5">Gritómetro</text>
     <text id="estado" x="1410" y="215" font-family="Creepster, Impact, fantasy" font-size="88" letter-spacing="3" fill="#ffe14d" filter="url(#brillo)"></text>
     <text id="ayuda" x="1410" y="262" font-family="IBM Plex Mono, monospace" font-size="24" fill="#a693b4"></text>
     <text id="nivel" x="1410" y="512"font-family="Bungee, Impact, sans-serif" font-size="300" fill="#ffffff" stroke="#000" stroke-width="10" paint-order="stroke" style="font-variant-numeric:tabular-nums">0</text>
@@ -106,6 +105,7 @@ svg.escena{display:block;width:100vw;height:100vh}
   const NS = 'http://www.w3.org/2000/svg';
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const canal = new BroadcastChannel('gritometro');
+  window.name = 'gritometro-pantalla'; // el botón de la configuración la busca por este nombre
   const MEDIO = 210, ALTO = 420;
   const levelToY = l => MEDIO - (l/100)*ALTO;
 
@@ -275,7 +275,7 @@ svg.escena{display:block;width:100vw;height:100vh}
     if (!w) return;
     let blank = true;
     try { blank = w.location.href === 'about:blank'; } catch(err) { blank = false; }
-    if (blank) w.location.href = 'configuracion.html'; else w.focus();
+    if (blank) w.location.href = new URL('configuracion.html', location.href).href; else w.focus();
   }
   $('logo').addEventListener('click', ev => { ev.stopPropagation(); openConfig(); });
   $('logo').addEventListener('dblclick', ev => ev.stopPropagation());

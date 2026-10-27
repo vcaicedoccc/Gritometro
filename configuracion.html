@@ -90,6 +90,7 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
       <div class="row">
         <button class="primary" id="btnMic">Activar micrófono</button>
         <button id="btnCal" disabled>Recalibrar silencio</button>
+        <button id="btnBell">Probar campana</button>
       </div>
       <p class="hint" id="calHint">Al activar, el medidor escucha 2 segundos el ruido del lugar para tomarlo como cero. Pidan silencio en ese momento.</p>
       <p class="err" id="err" hidden></p>
@@ -283,7 +284,10 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
     const k = target > level ? 0.15 : 0.07;
     level += (target - level) * (1 - Math.pow(1 - k, dt*60));
     if (ronda){
-      if (fase === 'grita') ronda.picoDb = Math.max(ronda.picoDb, over);
+      if (fase === 'grita'){
+        ronda.picoDb = Math.max(ronda.picoDb, over);
+        if (!ronda.campana && level >= 99.5){ ronda.campana = true; campana(); } // barril lleno
+      }
       avanzarRonda(now);
     }
 
@@ -350,6 +354,22 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
     if (pico >= 100) celebrate();
   }
 
+  // Campanita de barril lleno, sintetizada: parciales de campana que se apagan solos
+  let ctxPrueba = null;
+  function campana(){
+    const ac = ctx || (ctxPrueba = ctxPrueba || new (window.AudioContext||window.webkitAudioContext)());
+    const now = ac.currentTime, f0 = 1318.5; // Mi6
+    const out = ac.createGain(); out.gain.value = .35; out.connect(ac.destination);
+    [[1,1,1.8],[2,.5,1.2],[2.76,.35,.9],[5.4,.2,.5],[8.93,.12,.3]].forEach(([r,a,d])=>{
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = f0*r;
+      g.gain.setValueAtTime(.0001, now);
+      g.gain.exponentialRampToValueAtTime(a, now+.005);
+      g.gain.exponentialRampToValueAtTime(.0001, now+d);
+      o.connect(g).connect(out); o.start(now); o.stop(now+d+.05);
+    });
+  }
+
   function celebrate(){
     canal.postMessage({ t:'celebrar' });
     // risa de bruja sintetizada
@@ -369,7 +389,15 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
   $('btnMic').onclick = startMic;
   $('btnCal').onclick = () => { if (!calib && !ronda) calibrate(); };
   $('btnRound').onclick = startRound;
-  $('btnScreen').onclick = () => window.open('./', 'gritometro-pantalla');
+  // Lleva a la pantalla del Gritómetro: si ya está abierta desde aquí, pasa a ella; si no, la abre
+  $('btnScreen').onclick = () => {
+    const w = window.open('', 'gritometro-pantalla');
+    if (!w) return;
+    let blank = true;
+    try { blank = w.location.href === 'about:blank'; } catch(err) { blank = false; }
+    if (blank) w.location.href = new URL('./', location.href).href; else w.focus();
+  };
+  $('btnBell').onclick = campana;
   $('gate').oninput = e => { gate = +e.target.value; showSens(); };
   $('sens').oninput = e => { range = +e.target.value; showSens(); };
   $('btnClear').onclick = () => {
