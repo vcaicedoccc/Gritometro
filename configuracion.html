@@ -102,6 +102,7 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
         <button class="primary" id="btnRound" disabled>¡A gritar! (5 s)</button>
       </div>
       <p class="countdown" id="countdown" aria-live="polite"></p>
+      <p class="hint" id="msg" style="margin:0 0 6px"></p>
       <div class="stats">
         <div class="stat"><b id="sNow">0</b><small>Nivel ahora</small></div>
         <div class="stat"><b id="sPeak">0</b><small>Pico de la ronda</small></div>
@@ -138,8 +139,59 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
   const canal = new BroadcastChannel('gritometro');
 
   let ctx = null, baseline = -60, range = 40, level = 0, lastTick = 0;
-  let calib = null, ronda = null, pico = 0, fase = 'espera', texto = '', ultimoNombre = '';
+  let calib = null, ronda = null, pico = 0, fase = 'espera', texto = '', mensaje = '', ultimoNombre = '';
   let confirmClear = false, pantallaVista = 0;
+  window.name = 'gritometro-config'; // el logo de la pantalla principal la busca por este nombre
+
+  // Mensajes que Boo le dice al participante al terminar. {n} = nombre. Se elige uno al azar
+  // del nivel alcanzado, sin repetir el último.
+  const MENSAJES = {
+    legendario: [
+      '¡{n}, me desmayé del susto! ¡Qué grito!',
+      '¡{n}, ese grito llenó el barril entero! ¡Monsters, Inc. te quiere contratar!',
+      '¡WOW, {n}! ¡Con ese grito hay luz para toda Monstruópolis!',
+      '¡{n}, eres el asustador número uno! ¡Sulley está temblando!',
+      '¡Grito legendario, {n}! ¡Mike dice que eres una estrella!',
+      '¡{n}, rompiste el Gritómetro! ¡Eres una leyenda!',
+      '¡Uy, {n}! ¡Hasta los monstruos se taparon los oídos!',
+      '¡Bravo, {n}! ¡Ese grito se escuchó hasta en la puerta de mi cuarto!'
+    ],
+    aterrador: [
+      '¡{n}, casi me haces llorar!',
+      '¡Qué grito, {n}! ¡Casi llenas el barril!',
+      '¡Uff, {n}! ¡Un poquito más y llegas a 100!',
+      '¡{n}, a Mike casi se le cae el lente del susto!',
+      '¡{n}, ese grito dio miedo de verdad!',
+      '¡Muy bien, {n}! ¡Los monstruos están impresionados!',
+      '¡{n}, tienes voz de monstruo campeón!'
+    ],
+    miedito: [
+      'Mmm… {n}, me dio un escalofrío.',
+      '¡Buen grito, {n}! ¡Ya casi asustas a Sulley!',
+      '¡{n}, el barril se está llenando! ¡Sigue así!',
+      '¡Bien, {n}! ¡Ese grito tiene poder de monstruo!',
+      '¡{n}, me hiciste saltar un poquito!',
+      '¡Vas muy bien, {n}! ¡La próxima llenas el barril!',
+      '¡{n}, a Randall se le pusieron las escamas de punta!'
+    ],
+    suave: [
+      '{n}, ni me despeiné. ¡Otra vez!',
+      '¡{n}, ese fue un grito de gatito! ¡Miau! ¡Otra vez!',
+      '¡Vamos, {n}! ¡Respira hondo y grita con todas tus fuerzas!',
+      '¡{n}, el barril tiene hambre de gritos! ¡Dale más!',
+      '¡{n}, eso fue un susurro de monstruo! ¡Tú puedes más!',
+      '¡Calentando motores, {n}! ¡La próxima va con todo!',
+      '¡{n}, Mike dice que tú puedes gritar más fuerte!'
+    ]
+  };
+  const ultimoMensaje = {};
+  function elegirMensaje(nivel, name){
+    const lista = MENSAJES[nivel];
+    let i = Math.floor(Math.random()*lista.length);
+    if (lista.length > 1 && i === ultimoMensaje[nivel]) i = (i + 1) % lista.length;
+    ultimoMensaje[nivel] = i;
+    return lista[i].replace('{n}', name);
+  }
 
   // Ranking guardado en este navegador
   const KEY = 'gritometro-ranking';
@@ -168,7 +220,7 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
     return fase === 'resultado' ? ultimoNombre : '';
   }
   function emitir(){
-    canal.postMessage({ t:'estado', mic: !!ctx, nivel: level, pico, fase, texto, nombre: nombreVisible() });
+    canal.postMessage({ t:'estado', mic: !!ctx, nivel: level, pico, fase, texto, mensaje, nombre: nombreVisible() });
   }
   canal.onmessage = ({data}) => {
     if (data.t !== 'ping') return;
@@ -248,8 +300,8 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
 
   function startRound(){
     if (!ctx || calib || ronda) return;
-    ronda = { nombre: $('name').value.trim() || 'Alma anónima', t0: performance.now() };
-    pico = 0; fase = 'cuenta';
+    ronda = { nombre: $('name').value.trim() || 'Monstruito', t0: performance.now() };
+    pico = 0; fase = 'cuenta'; mensaje = ''; $('msg').textContent = '';
     botones();
   }
   function avanzarRonda(now){
@@ -268,8 +320,10 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
   function terminarRonda(){
     const name = ronda.nombre;
     const msg = pico >= 100 ? '¡Grito legendario!' : pico >= 70 ? 'Aterrador' : pico >= 40 ? 'Da miedito' : 'Ni un gato se asusta';
+    mensaje = elegirMensaje(pico >= 100 ? 'legendario' : pico >= 70 ? 'aterrador' : pico >= 40 ? 'miedito' : 'suave', name);
     fase = 'resultado'; texto = msg; ultimoNombre = name; ronda = null;
     $('countdown').textContent = `${name}: ${pico} · ${msg}`;
+    $('msg').textContent = `Boo dice: ${mensaje}`;
     board.push({ name, score: pico });
     saveBoard(); renderBoard();
     $('name').value = '';
@@ -299,7 +353,7 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
   $('btnScreen').onclick = () => window.open('./', 'gritometro-pantalla');
   $('name').addEventListener('keydown', e => { if (e.key === 'Enter') startRound(); });
   $('name').addEventListener('input', () => {
-    if (!ronda && fase === 'resultado' && $('name').value.trim()){ fase = 'espera'; texto = ''; }
+    if (!ronda && fase === 'resultado' && $('name').value.trim()){ fase = 'espera'; texto = ''; mensaje = ''; }
     emitir();
   });
   $('sens').oninput = e => { range = +e.target.value; $('sensVal').textContent = range; };
