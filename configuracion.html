@@ -98,9 +98,9 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
     <div class="card">
       <p class="label">2 · Ronda de grito</p>
       <div class="row">
-        <input type="text" id="name" placeholder="Nombre del participante" maxlength="30">
         <button class="primary" id="btnRound" disabled>¡A gritar! (5 s)</button>
       </div>
+      <p class="hint">También se inicia tocando a Boo en la pantalla principal (o con la barra espaciadora allí).</p>
       <p class="countdown" id="countdown" aria-live="polite"></p>
       <p class="hint" id="msg" style="margin:0 0 6px"></p>
       <div class="stats">
@@ -112,12 +112,19 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
 
     <div class="card">
       <p class="label">Sensibilidad</p>
+      <p class="hint" style="margin:0 0 6px">Ignorar ruidos de menos de <b id="gateVal">20</b> dB sobre el ambiente</p>
+      <div class="row">
+        <span class="hint" style="margin:0">0</span>
+        <input type="range" id="gate" min="0" max="40" value="20" aria-label="Decibeles sobre el ambiente que se ignoran">
+        <span class="hint" style="margin:0">40</span>
+      </div>
+      <p class="hint" style="margin:14px 0 6px">Dificultad: <b id="sensVal">35</b> dB más para llenar el barril</p>
       <div class="row">
         <span class="hint" style="margin:0">Fácil</span>
-        <input type="range" id="sens" min="20" max="60" value="40" aria-label="Rango en decibeles para llenar el barril">
+        <input type="range" id="sens" min="15" max="60" value="35" aria-label="Decibeles por encima del umbral para llenar el barril">
         <span class="hint" style="margin:0">Difícil</span>
       </div>
-      <p class="hint">Llenar el barril exige <b id="sensVal">40</b> dB por encima del ruido ambiente. Súbelo si todos llegan a 100.</p>
+      <p class="hint">Hoy el barril se llena con <b id="fullVal">55</b> dB sobre el ambiente, y la parte alta cuesta más que la baja. Prueben con un grito fuerte mirando «dB sobre ambiente»: si todos llegan a 100, suban la dificultad. Estos valores quedan guardados en este navegador.</p>
     </div>
   </div>
 
@@ -138,60 +145,70 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
   const $ = id => document.getElementById(id);
   const canal = new BroadcastChannel('gritometro');
 
-  let ctx = null, baseline = -60, range = 40, level = 0, lastTick = 0;
-  let calib = null, ronda = null, pico = 0, fase = 'espera', texto = '', mensaje = '', ultimoNombre = '';
+  let ctx = null, baseline = -60, gate = 20, range = 35, level = 0, lastTick = 0;
+  let calib = null, ronda = null, pico = 0, fase = 'espera', texto = '', mensaje = '';
   let confirmClear = false, pantallaVista = 0;
   window.name = 'gritometro-config'; // el logo de la pantalla principal la busca por este nombre
 
-  // Mensajes que Boo le dice al participante al terminar. {n} = nombre. Se elige uno al azar
-  // del nivel alcanzado, sin repetir el último.
+  // Mensajes que Boo le dice al participante al terminar. Se elige uno al azar del nivel
+  // alcanzado, sin repetir el último.
   const MENSAJES = {
     legendario: [
-      '¡{n}, me desmayé del susto! ¡Qué grito!',
-      '¡{n}, ese grito llenó el barril entero! ¡Monsters, Inc. te quiere contratar!',
-      '¡WOW, {n}! ¡Con ese grito hay luz para toda Monstruópolis!',
-      '¡{n}, eres el asustador número uno! ¡Sulley está temblando!',
-      '¡Grito legendario, {n}! ¡Mike dice que eres una estrella!',
-      '¡{n}, rompiste el Gritómetro! ¡Eres una leyenda!',
-      '¡Uy, {n}! ¡Hasta los monstruos se taparon los oídos!',
-      '¡Bravo, {n}! ¡Ese grito se escuchó hasta en la puerta de mi cuarto!'
+      '¡Me desmayé del susto! ¡Qué grito!',
+      '¡Ese grito llenó el barril entero! ¡Monsters, Inc. te quiere contratar!',
+      '¡WOW! ¡Con ese grito hay luz para toda Monstruópolis!',
+      '¡Eres el asustador número uno! ¡Sulley está temblando!',
+      '¡Grito legendario! ¡Mike dice que eres una estrella!',
+      '¡Rompiste el Gritómetro! ¡Eres una leyenda!',
+      '¡Uy! ¡Hasta los monstruos se taparon los oídos!',
+      '¡Bravo! ¡Ese grito se escuchó hasta en la puerta de mi cuarto!'
     ],
     aterrador: [
-      '¡{n}, casi me haces llorar!',
-      '¡Qué grito, {n}! ¡Casi llenas el barril!',
-      '¡Uff, {n}! ¡Un poquito más y llegas a 100!',
-      '¡{n}, a Mike casi se le cae el lente del susto!',
-      '¡{n}, ese grito dio miedo de verdad!',
-      '¡Muy bien, {n}! ¡Los monstruos están impresionados!',
-      '¡{n}, tienes voz de monstruo campeón!'
+      '¡Casi me haces llorar!',
+      '¡Qué grito! ¡Casi llenas el barril!',
+      '¡Uff! ¡Un poquito más y llegas a 100!',
+      '¡A Mike casi se le cae el lente del susto!',
+      '¡Ese grito dio miedo de verdad!',
+      '¡Muy bien! ¡Los monstruos están impresionados!',
+      '¡Tienes voz de monstruo campeón!'
     ],
     miedito: [
-      'Mmm… {n}, me dio un escalofrío.',
-      '¡Buen grito, {n}! ¡Ya casi asustas a Sulley!',
-      '¡{n}, el barril se está llenando! ¡Sigue así!',
-      '¡Bien, {n}! ¡Ese grito tiene poder de monstruo!',
-      '¡{n}, me hiciste saltar un poquito!',
-      '¡Vas muy bien, {n}! ¡La próxima llenas el barril!',
-      '¡{n}, a Randall se le pusieron las escamas de punta!'
+      'Mmm… me dio un escalofrío.',
+      '¡Buen grito! ¡Ya casi asustas a Sulley!',
+      '¡El barril se está llenando! ¡Sigue así!',
+      '¡Bien! ¡Ese grito tiene poder de monstruo!',
+      '¡Me hiciste saltar un poquito!',
+      '¡Vas muy bien! ¡La próxima llenas el barril!',
+      '¡A Randall se le pusieron las escamas de punta!'
     ],
     suave: [
-      '{n}, ni me despeiné. ¡Otra vez!',
-      '¡{n}, ese fue un grito de gatito! ¡Miau! ¡Otra vez!',
-      '¡Vamos, {n}! ¡Respira hondo y grita con todas tus fuerzas!',
-      '¡{n}, el barril tiene hambre de gritos! ¡Dale más!',
-      '¡{n}, eso fue un susurro de monstruo! ¡Tú puedes más!',
-      '¡Calentando motores, {n}! ¡La próxima va con todo!',
-      '¡{n}, Mike dice que tú puedes gritar más fuerte!'
+      'Ni me despeiné. ¡Otra vez!',
+      '¡Ese fue un grito de gatito! ¡Miau! ¡Otra vez!',
+      '¡Vamos! ¡Respira hondo y grita con todas tus fuerzas!',
+      '¡El barril tiene hambre de gritos! ¡Dale más!',
+      '¡Eso fue un susurro de monstruo! ¡Tú puedes más!',
+      '¡Calentando motores! ¡La próxima va con todo!',
+      '¡Mike dice que tú puedes gritar más fuerte!'
     ]
   };
   const ultimoMensaje = {};
-  function elegirMensaje(nivel, name){
+  function elegirMensaje(nivel){
     const lista = MENSAJES[nivel];
     let i = Math.floor(Math.random()*lista.length);
     if (lista.length > 1 && i === ultimoMensaje[nivel]) i = (i + 1) % lista.length;
     ultimoMensaje[nivel] = i;
-    return lista[i].replace('{n}', name);
+    return lista[i];
   }
+
+  // Sensibilidad guardada en este navegador
+  const SENS_KEY = 'gritometro-sensibilidad';
+  try { const s = JSON.parse(localStorage.getItem(SENS_KEY)); if (s){ gate = s.gate; range = s.range; } } catch(e){}
+  function showSens(){
+    $('gate').value = gate; $('sens').value = range;
+    $('gateVal').textContent = gate; $('sensVal').textContent = range; $('fullVal').textContent = gate + range;
+    try { localStorage.setItem(SENS_KEY, JSON.stringify({ gate, range })); } catch(e){}
+  }
+  showSens();
 
   // Ranking guardado en este navegador
   const KEY = 'gritometro-ranking';
@@ -213,16 +230,11 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
   renderBoard();
 
   // Estado que dibuja la pantalla principal
-  function nombreVisible(){
-    if (ronda) return ronda.nombre;
-    const escrito = $('name').value.trim();
-    if (escrito) return escrito;
-    return fase === 'resultado' ? ultimoNombre : '';
-  }
   function emitir(){
-    canal.postMessage({ t:'estado', mic: !!ctx, nivel: level, pico, fase, texto, mensaje, nombre: nombreVisible() });
+    canal.postMessage({ t:'estado', mic: !!ctx, nivel: level, pico, fase, texto, mensaje });
   }
   canal.onmessage = ({data}) => {
+    if (data.t === 'iniciar'){ startRound(); return; } // tocaron a Boo en la pantalla principal
     if (data.t !== 'ping') return;
     pantallaVista = performance.now();
     $('screen').textContent = 'Pantalla conectada'; $('screen').classList.add('on');
@@ -239,13 +251,14 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
 
   function calibrate(){
     calib = { t0: performance.now(), muestras: [] };
+    fase = 'calibrando'; texto = 'Silencio…'; mensaje = '';
     $('calHint').textContent = 'Calibrando… silencio por favor (2 s)';
-    botones();
+    botones(); emitir();
   }
   function cerrarCalibracion(){
     const m = calib.muestras.sort((a,b)=>a-b);
     baseline = m[Math.floor(m.length*0.7)] + 3;
-    calib = null;
+    calib = null; fase = 'espera'; texto = '';
     $('calHint').textContent = 'Listo. El ruido del lugar quedó como cero.';
     botones();
   }
@@ -262,11 +275,17 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
       if (now - calib.t0 >= 2000) cerrarCalibracion();
     }
     const over = db - baseline;
-    const target = calib ? 0 : Math.max(0, Math.min(100, over/range*100));
-    // Mismo suavizado que el mockup a 60 cuadros por segundo, ajustado al intervalo real
-    const k = target > level ? 0.5 : 0.07;
+    // Por debajo del umbral no cuenta; encima, la curva hace que la parte alta cueste más
+    const x = Math.max(0, Math.min(1, (over - gate)/range));
+    const target = calib ? 0 : 100*Math.pow(x, 1.5);
+    // Sube en ~0.1 s y baja despacio (factores por cuadro a 60 fps, ajustados al intervalo
+    // real): un aplauso o un golpe corto no alcanzan a llenar; un grito sostenido sí
+    const k = target > level ? 0.15 : 0.07;
     level += (target - level) * (1 - Math.pow(1 - k, dt*60));
-    if (ronda) avanzarRonda(now);
+    if (ronda){
+      if (fase === 'grita') ronda.picoDb = Math.max(ronda.picoDb, over);
+      avanzarRonda(now);
+    }
 
     const shown = Math.round(level);
     $('sNow').textContent = shown;
@@ -300,9 +319,9 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
 
   function startRound(){
     if (!ctx || calib || ronda) return;
-    ronda = { nombre: $('name').value.trim() || 'Monstruito', t0: performance.now() };
-    pico = 0; fase = 'cuenta'; mensaje = ''; $('msg').textContent = '';
-    botones();
+    ronda = { t0: performance.now(), picoDb: 0 };
+    pico = 0; fase = 'cuenta'; texto = '3…'; mensaje = ''; $('msg').textContent = '';
+    botones(); emitir();
   }
   function avanzarRonda(now){
     const el = now - ronda.t0;
@@ -318,15 +337,15 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
     $('countdown').textContent = texto;
   }
   function terminarRonda(){
-    const name = ronda.nombre;
     const msg = pico >= 100 ? '¡Grito legendario!' : pico >= 70 ? 'Aterrador' : pico >= 40 ? 'Da miedito' : 'Ni un gato se asusta';
-    mensaje = elegirMensaje(pico >= 100 ? 'legendario' : pico >= 70 ? 'aterrador' : pico >= 40 ? 'miedito' : 'suave', name);
-    fase = 'resultado'; texto = msg; ultimoNombre = name; ronda = null;
-    $('countdown').textContent = `${name}: ${pico} · ${msg}`;
-    $('msg').textContent = `Boo dice: ${mensaje}`;
-    board.push({ name, score: pico });
+    mensaje = elegirMensaje(pico >= 100 ? 'legendario' : pico >= 70 ? 'aterrador' : pico >= 40 ? 'miedito' : 'suave');
+    const picoDb = Math.round(ronda.picoDb);
+    fase = 'resultado'; texto = msg; ronda = null;
+    $('countdown').textContent = `${pico} · ${msg}`;
+    $('msg').textContent = `Boo dice: ${mensaje} · Grito más fuerte: ${picoDb} dB sobre el ambiente (llena con ${gate + range}).`;
+    const hora = new Date().toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
+    board.push({ name: `Grito #${board.length + 1} · ${hora}`, score: pico });
     saveBoard(); renderBoard();
-    $('name').value = '';
     botones();
     if (pico >= 100) celebrate();
   }
@@ -351,12 +370,8 @@ ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
   $('btnCal').onclick = () => { if (!calib && !ronda) calibrate(); };
   $('btnRound').onclick = startRound;
   $('btnScreen').onclick = () => window.open('./', 'gritometro-pantalla');
-  $('name').addEventListener('keydown', e => { if (e.key === 'Enter') startRound(); });
-  $('name').addEventListener('input', () => {
-    if (!ronda && fase === 'resultado' && $('name').value.trim()){ fase = 'espera'; texto = ''; mensaje = ''; }
-    emitir();
-  });
-  $('sens').oninput = e => { range = +e.target.value; $('sensVal').textContent = range; };
+  $('gate').oninput = e => { gate = +e.target.value; showSens(); };
+  $('sens').oninput = e => { range = +e.target.value; showSens(); };
   $('btnClear').onclick = () => {
     if (!confirmClear){ confirmClear = true; $('btnClear').textContent = '¿Seguro? Toca otra vez'; setTimeout(()=>{confirmClear=false; $('btnClear').textContent='Borrar ranking';},3000); return; }
     board = []; saveBoard(); renderBoard(); confirmClear = false; $('btnClear').textContent = 'Borrar ranking';

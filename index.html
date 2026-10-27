@@ -72,10 +72,10 @@ svg.escena{display:block;width:100vw;height:100vh}
   <g text-anchor="middle">
     <text id="nombre" x="1410" y="110" font-family="Bungee, Impact, sans-serif" font-size="52" fill="#fbe7b5">Gritómetro</text>
     <text id="estado" x="1410" y="215" font-family="Creepster, Impact, fantasy" font-size="88" letter-spacing="3" fill="#ffe14d" filter="url(#brillo)"></text>
-    <text id="ayuda" x="1410" y="285" font-family="IBM Plex Mono, monospace" font-size="24" fill="#a693b4"></text>
-    <text id="nivel" x="1410" y="495" font-family="Bungee, Impact, sans-serif" font-size="300" fill="#ffffff" stroke="#000" stroke-width="10" paint-order="stroke" style="font-variant-numeric:tabular-nums">0</text>
-    <text id="etiqueta" x="1410" y="555" font-family="IBM Plex Mono, monospace" font-size="30" letter-spacing="10" fill="#a693b4">NIVEL</text>
-    <text id="picoTexto" x="1410" y="612" font-family="IBM Plex Mono, monospace" font-weight="600" font-size="34" fill="#f3ece6"></text>
+    <text id="ayuda" x="1410" y="262" font-family="IBM Plex Mono, monospace" font-size="24" fill="#a693b4"></text>
+    <text id="nivel" x="1410" y="512"font-family="Bungee, Impact, sans-serif" font-size="300" fill="#ffffff" stroke="#000" stroke-width="10" paint-order="stroke" style="font-variant-numeric:tabular-nums">0</text>
+    <text id="etiqueta" x="1410" y="566"font-family="IBM Plex Mono, monospace" font-size="30" letter-spacing="10" fill="#a693b4">NIVEL</text>
+    <text id="picoTexto" x="1410" y="620"font-family="IBM Plex Mono, monospace" font-weight="600" font-size="34" fill="#f3ece6"></text>
   </g>
 
   <!-- Logo: botón que lleva a la configuración -->
@@ -83,6 +83,12 @@ svg.escena{display:block;width:100vw;height:100vh}
     <circle class="aro" cx="1811" cy="110" r="96" fill="none" stroke="#ffe14d" stroke-width="6"/>
     <circle cx="1811" cy="110" r="90" fill="transparent"/>
     <title>Abrir la configuración</title>
+  </g>
+
+  <!-- Boo: botón que inicia la siguiente ronda -->
+  <g id="boo" role="button" tabindex="0" aria-label="Iniciar ronda de grito" style="cursor:pointer;outline:none">
+    <path d="M1312,1080 L1312,780 Q1420,640 1600,650 Q1790,660 1900,790 L1900,1080 Z" fill="transparent"/>
+    <title>Toca a Boo para gritar</title>
   </g>
 
   <!-- Globo de Boo con el mensaje al terminar la ronda; puede quedar encima del barril -->
@@ -209,12 +215,16 @@ svg.escena{display:block;width:100vw;height:100vh}
 
   function drawPanel(vivo){
     if (!vivo){
-      setFit('nombre', 'Gritómetro', 580); setFit('estado', 'Esperando…', 580);
+      setFit('estado', 'Esperando…', 580);
       setFit('ayuda', 'Toca el logo para abrir la configuración', 580);
     } else if (!e.mic){
-      setFit('nombre', e.nombre || 'Gritómetro', 580); setFit('estado', 'Micrófono apagado', 580); set('ayuda', '');
+      setFit('estado', 'Micrófono apagado', 580); setFit('ayuda', 'Actívalo en la configuración', 580);
+    } else if (e.fase === 'espera'){
+      setFit('estado', '¿Quién se atreve?', 580); setFit('ayuda', 'Toca a Boo para gritar', 580);
+    } else if (e.fase === 'resultado'){
+      setFit('estado', e.texto, 580); setFit('ayuda', 'Toca a Boo para el siguiente grito', 580);
     } else {
-      setFit('nombre', e.nombre || 'Gritómetro', 580); setFit('estado', e.texto, 580); set('ayuda', '');
+      setFit('estado', e.texto, 580); set('ayuda', '');
     }
     const resultado = vivo && e.fase === 'resultado';
     const n = resultado ? e.pico : Math.round(level);
@@ -271,10 +281,19 @@ svg.escena{display:block;width:100vw;height:100vh}
   $('logo').addEventListener('dblclick', ev => ev.stopPropagation());
   $('logo').addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); openConfig(); } });
 
+  // Boo (o la barra espaciadora) inicia la siguiente ronda; la configuración decide si se puede
+  const iniciar = () => canal.postMessage({ t:'iniciar' });
+  $('boo').addEventListener('click', ev => { ev.stopPropagation(); iniciar(); });
+  $('boo').addEventListener('dblclick', ev => ev.stopPropagation());
+  $('boo').addEventListener('keydown', ev => { if (ev.key === 'Enter'){ ev.preventDefault(); iniciar(); } });
+
   // Pantalla completa con doble clic o tecla F; el cursor se oculta si no se mueve
   const toggleFs = () => { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(()=>{}); };
   addEventListener('dblclick', toggleFs);
-  addEventListener('keydown', ev => { if ((ev.key === 'f' || ev.key === 'F') && ev.target === document.body) toggleFs(); });
+  addEventListener('keydown', ev => {
+    if (ev.key === ' '){ ev.preventDefault(); iniciar(); }
+    else if ((ev.key === 'f' || ev.key === 'F') && ev.target === document.body) toggleFs();
+  });
   let idleTimer;
   addEventListener('mousemove', () => {
     document.body.classList.remove('idle');
