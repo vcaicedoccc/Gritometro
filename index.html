@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gritómetro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Creepster&family=Bungee&family=IBM+Plex+Mono:wght@400;600&family=Rubik:wght@400;600&display=swap">
+<style>
+/* Noche de Halloween: luna y murciélagos al fondo, telarañas en las esquinas,
+   frasco con poción y calabazas a la izquierda, controles a la derecha, niebla abajo */
+:root{
+  --bg:#110a1a;
+  --panel:#1b1226;
+  --line:#3a2850;
+  --fg:#f3ece6;
+  --muted:#a693b4;
+  --pumpkin:#ff7a1a;
+  --potion:#8cff3a;
+  --moon:#fbe7b5;
+  --f-spooky:"Creepster", "Chiller", Impact, fantasy;
+  --f-display:"Bungee", Impact, "Arial Black", sans-serif;
+  --f-body:"Rubik", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:
+    radial-gradient(circle at 88% 9%, rgba(251,231,181,.18) 0 120px, transparent 260px),
+    radial-gradient(ellipse at 20% 100%, #2a1340 0%, transparent 60%),
+    var(--bg);
+  color:var(--fg);font-family:var(--f-body);font-size:15px;overflow-x:hidden;
+  padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));
+}
+
+/* Decoración de fondo */
+.moon{position:fixed;top:30px;right:6%;width:110px;height:110px;border-radius:50%;
+  background:radial-gradient(circle at 38% 35%, #fff8e1, var(--moon) 55%, #e3c47f);
+  box-shadow:0 0 60px rgba(251,231,181,.45);z-index:0;pointer-events:none}
+.moon::before,.moon::after{content:"";position:absolute;border-radius:50%;background:rgba(180,150,90,.25)}
+.moon::before{width:22px;height:22px;top:28px;left:56px}
+.moon::after{width:14px;height:14px;top:66px;left:30px}
+.web{position:fixed;top:0;width:min(220px,35vw);height:auto;z-index:1;pointer-events:none;opacity:.55}
+.web.left{left:0}.web.right{right:0;transform:scaleX(-1)}
+#bats{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.bat{position:absolute;left:-80px;width:48px;animation:fly linear forwards}
+.bat svg{width:100%;height:auto;display:block;animation:flap .22s ease-in-out infinite alternate;transform-origin:center}
+@keyframes fly{to{transform:translate(calc(100vw + 160px), var(--dy))}}
+@keyframes flap{from{transform:scaleY(1)}to{transform:scaleY(.35)}}
+.fog{position:fixed;left:-20%;right:-20%;bottom:-40px;height:160px;z-index:1;pointer-events:none;
+  background:radial-gradient(ellipse at 30% 60%, rgba(200,180,230,.18), transparent 60%),
+             radial-gradient(ellipse at 75% 70%, rgba(200,180,230,.14), transparent 55%);
+  filter:blur(8px);animation:drift 14s ease-in-out infinite alternate}
+@keyframes drift{to{transform:translateX(8%)}}
+
+header,.wrap{position:relative;z-index:2}
+.wrap{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:minmax(260px,440px) 1fr;gap:28px;align-items:start}
+@media (max-width:760px){.wrap{grid-template-columns:1fr}.moon{width:70px;height:70px}}
+
+header{max-width:1100px;margin:0 auto 18px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:12px}
+h1{font-family:var(--f-spooky);font-weight:400;font-size:clamp(46px,8vw,86px);margin:0;letter-spacing:.03em;line-height:.95;
+  color:var(--pumpkin);text-shadow:0 0 24px rgba(255,122,26,.55),0 4px 0 #5a1f00;text-wrap:balance}
+.sub{color:var(--muted);margin:8px 0 0;font-size:14px;letter-spacing:.04em}
+.status{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border:1px solid var(--line);border-radius:4px;color:var(--muted);background:rgba(17,10,26,.7)}
+.status.on{color:var(--potion);border-color:var(--potion)}
+
+/* Frasco y calabazas */
+.flask-zone{position:relative;width:100%;max-width:440px;margin:0 auto}
+.flask-zone > svg.flask{display:block;width:78%;margin:0 auto;height:auto;max-height:70vh}
+#sparks{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.pumpkin{position:absolute;bottom:0;width:24%;height:auto;z-index:3}
+.pumpkin.l{left:0}.pumpkin.r{right:0;width:19%}
+.pumpkin .face{fill:#ffd23a;opacity:var(--glow,.25);filter:drop-shadow(0 0 6px #ffb000)}
+.readout{font-family:var(--f-display);font-variant-numeric:tabular-nums}
+.full > svg.flask{animation:shake .08s linear 12}
+@keyframes shake{25%{transform:translate(2px,-1px)}75%{transform:translate(-2px,1px)}}
+
+/* Panel */
+.panel{display:flex;flex-direction:column;gap:18px;min-width:0}
+.card{background:linear-gradient(180deg,rgba(35,22,50,.92),rgba(27,18,38,.92));border:1px solid var(--line);border-radius:10px;padding:18px;position:relative}
+.label{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button{font-family:var(--f-body);font-weight:600;font-size:15px;border-radius:8px;border:1px solid var(--line);background:#2a1c3a;color:var(--fg);padding:11px 16px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--pumpkin)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--pumpkin);outline-offset:2px}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:var(--pumpkin);color:#2a0f00;border-color:var(--pumpkin)}
+input[type=text]{flex:1;min-width:140px;font:inherit;background:#120b1b;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+input[type=range]{flex:1;accent-color:var(--pumpkin)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat b{display:block;font-family:var(--f-display);font-weight:400;font-size:26px;font-variant-numeric:tabular-nums}
+.stat small{color:var(--muted);font-size:12px}
+.countdown{font-family:var(--f-spooky);font-size:34px;letter-spacing:.04em;color:var(--potion);min-height:42px;text-shadow:0 0 14px rgba(140,255,58,.5)}
+ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+ol li{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:6px;background:#140d1e;font-variant-numeric:tabular-nums}
+ol li:first-child{background:rgba(255,122,26,.12);border:1px solid rgba(255,122,26,.45)}
+ol li .pos{font-family:var(--f-mono);color:var(--muted)}
+ol li:first-child .pos{color:var(--pumpkin)}
+ol li .pts{font-family:var(--f-display);color:var(--pumpkin)}
+.crown{font-family:var(--f-spooky);font-size:13px;color:var(--pumpkin);margin-left:8px;letter-spacing:.05em}
+.empty{color:var(--muted);font-size:14px;margin:0}
+.hint{color:var(--muted);font-size:13px;margin:8px 0 0;line-height:1.5}
+.err{color:#ff6b4a;font-size:14px;margin:8px 0 0}
+.spider{position:absolute;top:0;left:10%;width:24px;z-index:3;pointer-events:none;animation:dangle 4s ease-in-out infinite alternate;transform-origin:top center}
+@keyframes dangle{from{transform:translateY(0)}to{transform:translateY(40px)}}
+
+/* Grumo, la mascota */
+.mascot{display:flex;align-items:center;gap:14px;margin:4px 0 14px}
+.mascot svg{width:130px;flex:none;height:auto;overflow:visible}
+.countdown:empty{min-height:0;margin:4px 0}
+.bubble{position:relative;flex:1;min-width:0;background:#f3ece6;color:#2a1640;border-radius:14px;padding:12px 14px;font-weight:600;font-size:15px;line-height:1.35}
+.bubble::before{content:"";position:absolute;left:-9px;top:50%;margin-top:-8px;border:8px solid transparent;border-right-color:#f3ece6;border-left:0}
+.bubble small{display:block;font-family:var(--f-mono);font-weight:400;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#7a5f99;margin-bottom:3px}
+#grumo{transform-origin:80px 160px;transition:transform .5s cubic-bezier(.5,-0.4,.6,1.4)}
+#grumo.shake{animation:grumoShake .09s linear infinite}
+#grumo.faint{transform:rotate(-78deg) translateY(12px)}
+@keyframes grumoShake{25%{translate:2px 0}75%{translate:-2px 0}}
+@media (max-width:420px){.mascot svg{width:100px}}
+@media (prefers-reduced-motion:reduce){#grumo.shake{animation:none}#grumo{transition:none}}
+@media (prefers-reduced-motion:reduce){
+  .full > svg.flask,.bat,.bat svg,.fog,.spider{animation:none}
+  #bats{display:none}
+}
+</style>
+</head>
+<body>
+<div class="moon" aria-hidden="true"></div>
+<svg class="web left" id="webL" viewBox="0 0 220 220" aria-hidden="true"></svg>
+<svg class="web right" id="webR" viewBox="0 0 220 220" aria-hidden="true"></svg>
+<div id="bats" aria-hidden="true"></div>
+<div class="fog" aria-hidden="true"></div>
+
+<header>
+  <div>
+    <h1>Gritómetro</h1>
+    <p class="sub">¿Quién tiene el grito más aterrador? · Halloween 2026</p>
+  </div>
+  <div id="status" class="status">Micrófono apagado</div>
+</header>
+
+<div class="wrap">
+  <section class="flask-zone" id="flaskZone" aria-label="Frasco de poción">
+    <svg class="flask" viewBox="0 0 320 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Nivel de grito">
+      <defs>
+        <clipPath id="flaskClip">
+          <path d="M130,58 L130,176 A140,140 0 1,0 190,176 L190,58 Z"/>
+        </clipPath>
+        <linearGradient id="liq" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#c9ff6b"/>
+          <stop offset=".35" stop-color="#8cff3a"/>
+          <stop offset="1" stop-color="#1f8f2c"/>
+        </linearGradient>
+        <radialGradient id="glassShade" cx=".35" cy=".35" r=".8">
+          <stop offset="0" stop-color="#ffffff" stop-opacity=".07"/>
+          <stop offset="1" stop-color="#d0b8ff" stop-opacity=".02"/>
+        </radialGradient>
+        <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="8" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <ellipse id="aura" cx="160" cy="320" rx="150" ry="150" fill="#8cff3a" opacity="0"/>
+      <path d="M130,58 L130,176 A140,140 0 1,0 190,176 L190,58 Z" fill="#120c1c" opacity=".75"/>
+      <g clip-path="url(#flaskClip)">
+        <path id="liquid" fill="url(#liq)" filter="url(#glow)" d=""/>
+        <g id="bubbles"></g>
+        <!-- calavera flotando en la poción -->
+        <g id="skull" opacity=".55">
+          <path d="M-14,0 a14,13 0 1,1 28,0 l0,6 l-5,0 l0,5 l-18,0 l0,-5 l-5,0 Z" fill="#e9f7d9"/>
+          <circle cx="-5.5" cy="0" r="4" fill="#1f8f2c"/><circle cx="5.5" cy="0" r="4" fill="#1f8f2c"/>
+          <path d="M-2,6 L0,3 L2,6 Z" fill="#1f8f2c"/>
+        </g>
+        <line id="peakLine" x1="0" x2="320" y1="470" y2="470" stroke="#ffffff" stroke-width="2" stroke-dasharray="6 5" opacity="0"/>
+      </g>
+
+      <path d="M130,58 L130,176 A140,140 0 1,0 190,176 L190,58 Z" fill="url(#glassShade)" stroke="#c9b8de" stroke-opacity=".55" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M52,290 A115,115 0 0,1 96,210" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="7" stroke-linecap="round"/>
+      <path d="M140,70 L140,160" stroke="#ffffff" stroke-opacity=".15" stroke-width="4" stroke-linecap="round"/>
+      <rect x="122" y="52" width="76" height="12" rx="5" fill="#c9b8de" fill-opacity=".6"/>
+
+      <!-- etiqueta del frasco -->
+      <g transform="translate(160 408) rotate(-4)">
+        <rect x="-58" y="-17" width="116" height="34" rx="3" fill="#efe1c4" stroke="#7a5a2e" stroke-width="2"/>
+        <text y="9" text-anchor="middle" font-family="Creepster, Impact, fantasy" font-size="23" letter-spacing="1.5" fill="#5a1f00">Grito puro</text>
+      </g>
+
+      <g id="scale" font-family="IBM Plex Mono, monospace" font-size="11" fill="#a693b4"></g>
+
+      <rect x="138" y="20" width="44" height="12" fill="#cfc6dc"/>
+      <rect x="152" y="2" width="16" height="20" rx="3" fill="#cfc6dc"/>
+      <circle cx="160" cy="4" r="6" fill="#f0e9ff"/>
+      <path d="M128,30 L192,30 L186,60 L134,60 Z" fill="#8a5a33"/>
+      <path d="M134,38 L186,38 M132,48 L188,48" stroke="#6b4426" stroke-width="2"/>
+
+      <rect x="70" y="464" width="180" height="16" rx="4" fill="#2d2238"/>
+      <rect x="50" y="478" width="220" height="20" rx="4" fill="#3d2f4c"/>
+      <text x="160" y="493" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="3" fill="#b6a5c4">LAB · CCC · 2026</text>
+
+      <text id="readout" class="readout" x="160" y="345" text-anchor="middle" font-size="64" fill="#ffffff" stroke="#110a1a" stroke-width="6" paint-order="stroke">0</text>
+    </svg>
+
+    <!-- calabazas: los ojos brillan con el grito -->
+    <svg class="pumpkin l" viewBox="0 0 110 96" aria-hidden="true">
+      <path d="M52,16 C50,8 54,2 62,0 L64,4 C58,6 57,10 58,16 Z" fill="#3f7a2a"/>
+      <ellipse cx="30" cy="58" rx="26" ry="34" fill="#d9590f"/>
+      <ellipse cx="80" cy="58" rx="26" ry="34" fill="#d9590f"/>
+      <ellipse cx="55" cy="56" rx="30" ry="38" fill="#ff7a1a"/>
+      <path d="M40,22 C34,40 34,74 40,92 M70,22 C76,40 76,74 70,92" stroke="#c54c08" stroke-width="2" fill="none"/>
+      <g class="face">
+        <path d="M30,48 L42,34 L46,52 Z"/><path d="M80,48 L68,34 L64,52 Z"/>
+        <path d="M50,58 L55,50 L60,58 Z"/>
+        <path d="M24,66 L34,72 L40,66 L48,74 L55,66 L62,74 L70,66 L76,72 L86,66 C80,84 30,84 24,66 Z"/>
+      </g>
+    </svg>
+    <svg class="pumpkin r" viewBox="0 0 110 96" aria-hidden="true">
+      <path d="M52,16 C50,8 54,2 62,0 L64,4 C58,6 57,10 58,16 Z" fill="#3f7a2a"/>
+      <ellipse cx="32" cy="60" rx="24" ry="32" fill="#d9590f"/>
+      <ellipse cx="78" cy="60" rx="24" ry="32" fill="#d9590f"/>
+      <ellipse cx="55" cy="58" rx="28" ry="36" fill="#ff7a1a"/>
+      <g class="face">
+        <circle cx="40" cy="48" r="8"/><circle cx="70" cy="48" r="8"/>
+        <path d="M34,68 C44,84 66,84 76,68 C66,74 44,74 34,68 Z"/>
+      </g>
+    </svg>
+<svg class="spider" viewBox="0 0 22 120" aria-hidden="true">
+        <line x1="11" y1="0" x2="11" y2="104" stroke="#a693b4" stroke-width="1"/>
+        <g stroke="#0a0610" stroke-width="1.6" fill="none">
+          <path d="M8,106 L2,100 M8,109 L1,109 M8,112 L2,118 M14,106 L20,100 M14,109 L21,109 M14,112 L20,118"/>
+        </g>
+        <ellipse cx="11" cy="110" rx="5" ry="6" fill="#0a0610"/>
+        <circle cx="9.3" cy="108" r="1" fill="#ff7a1a"/><circle cx="12.7" cy="108" r="1" fill="#ff7a1a"/>
+      </svg>
+    <canvas id="sparks"></canvas>
+  </section>
+
+  <section class="panel">
+    <div class="card">
+      <p class="label">1 · Encender</p>
+      <div class="row">
+        <button class="primary" id="btnMic">Activar micrófono</button>
+        <button id="btnCal" disabled>Recalibrar silencio</button>
+        <button id="btnFs">Pantalla completa</button>
+      </div>
+      <p class="hint" id="calHint">Al activar, el medidor escucha 2 segundos el ruido del lugar para tomarlo como cero. Pidan silencio en ese momento.</p>
+      <p class="err" id="err" hidden></p>
+    </div>
+
+    <div class="card">
+
+      <p class="label">2 · Ronda de grito</p>
+      <div class="row">
+        <input type="text" id="name" placeholder="Nombre del participante" maxlength="30">
+        <button class="primary" id="btnRound" disabled>¡A gritar! (5 s)</button>
+      </div>
+      <p class="countdown" id="countdown" aria-live="polite"></p>
+      <div class="mascot">
+        <svg viewBox="0 0 160 170" aria-hidden="true">
+          <ellipse cx="80" cy="162" rx="50" ry="6" fill="#000" opacity=".35"/>
+          <g id="grumo">
+            <ellipse cx="58" cy="150" rx="15" ry="9" fill="#4a2a8c"/>
+            <ellipse cx="104" cy="150" rx="15" ry="9" fill="#4a2a8c"/>
+            <path d="M74,44 C70,28 76,12 92,4 C88,16 90,30 90,44 Z" fill="#ff9a3d"/>
+            <path d="M80,40 C79,30 82,20 88,14" stroke="#ffc58a" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <path id="gBody" fill="#7b4bd6" d=""/>
+            <ellipse cx="82" cy="118" rx="32" ry="26" fill="#a98bf0" opacity=".55"/>
+            <g id="gArms" stroke="#5a33a8" stroke-width="9" stroke-linecap="round" fill="none">
+              <path id="armL" d="M28,100 C18,110 18,122 24,128"/>
+              <path id="armR" d="M134,100 C144,110 144,122 138,128"/>
+            </g>
+            <g id="gEyes">
+              <circle cx="62" cy="78" r="17" fill="#fff"/>
+              <circle cx="102" cy="84" r="11" fill="#fff"/>
+              <circle id="pupL" cx="64" cy="80" r="7" fill="#1a0e26"/>
+              <circle id="pupR" cx="103" cy="85" r="5" fill="#1a0e26"/>
+              <rect id="lidL" x="44" y="60" width="36" height="0" fill="#7b4bd6"/>
+              <rect id="lidR" x="90" y="72" width="24" height="0" fill="#7b4bd6"/>
+            </g>
+            <g id="gX" stroke="#1a0e26" stroke-width="4" stroke-linecap="round" opacity="0">
+              <path d="M54,70 L70,86 M70,70 L54,86"/><path d="M95,77 L109,91 M109,77 L95,91"/>
+            </g>
+            <g id="gMouth"></g>
+          </g>
+        </svg>
+        <div class="bubble" aria-live="polite"><small>Grumo dice</small><span id="say">Grrr… ¿nadie se atreve a gritar?</span></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><b id="sNow">0</b><small>Nivel ahora</small></div>
+        <div class="stat"><b id="sPeak">0</b><small>Pico de la ronda</small></div>
+        <div class="stat"><b id="sDb">–</b><small>dB sobre ambiente</small></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="label">Sensibilidad</p>
+      <div class="row">
+        <span class="hint" style="margin:0">Fácil</span>
+        <input type="range" id="sens" min="20" max="60" value="40" aria-label="Rango en decibeles para llenar el frasco">
+        <span class="hint" style="margin:0">Difícil</span>
+      </div>
+      <p class="hint">Llenar el frasco exige <b id="sensVal">40</b> dB por encima del ruido ambiente. Súbelo si todos llegan a 100.</p>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <p class="label" style="margin:0">Salón de los gritos</p>
+        <button id="btnClear" style="padding:6px 10px;font-size:13px">Borrar ranking</button>
+      </div>
+      <ol id="board"></ol>
+      <p class="empty" id="boardEmpty">Aún nadie se ha atrevido a gritar.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Telarañas en las esquinas
+  function drawWeb(svg){
+    const spokes = 7, rings = 6, R = 210, pts = [];
+    for (let i=0;i<=spokes;i++){
+      const a = (i/spokes)*Math.PI/2;
+      pts.push([Math.cos(a), Math.sin(a)]);
+      const l = document.createElementNS(NS,'line');
+      l.setAttribute('x1',0); l.setAttribute('y1',0);
+      l.setAttribute('x2',pts[i][0]*R); l.setAttribute('y2',pts[i][1]*R);
+      l.setAttribute('stroke','#d8cce6'); l.setAttribute('stroke-width','1');
+      svg.appendChild(l);
+    }
+    for (let r=1;r<=rings;r++){
+      const rr = R*r/(rings+.6);
+      let d = '';
+      for (let i=0;i<spokes;i++){
+        const [x1,y1] = pts[i], [x2,y2] = pts[i+1];
+        const mx = (x1+x2)/2, my = (y1+y2)/2;
+        d += (i===0?`M${x1*rr},${y1*rr}`:'') + ` Q${mx*rr*.86},${my*rr*.86} ${x2*rr},${y2*rr}`;
+      }
+      const p = document.createElementNS(NS,'path');
+      p.setAttribute('d',d); p.setAttribute('fill','none');
+      p.setAttribute('stroke','#d8cce6'); p.setAttribute('stroke-width','1');
+      svg.appendChild(p);
+    }
+  }
+  drawWeb($('webL')); drawWeb($('webR'));
+
+  // Murciélagos
+  const BAT = '<svg viewBox="0 0 48 22"><path fill="#07040b" d="M0,10 C6,2 12,4 16,10 C18,6 20,6 22,4 L24,8 L26,4 C28,6 30,6 32,10 C36,4 42,2 48,10 C42,10 38,14 36,18 C32,14 28,16 24,20 C20,16 16,14 12,18 C10,14 6,10 0,10 Z"/></svg>';
+  function releaseBat(fast){
+    if (reduced) return;
+    const b = document.createElement('div');
+    b.className = 'bat'; b.innerHTML = BAT;
+    const size = 26 + Math.random()*36;
+    b.style.width = size + 'px';
+    b.style.top = (fast ? 20 + Math.random()*60 : 4 + Math.random()*40) + 'vh';
+    b.style.setProperty('--dy', ((Math.random()-.5)*30) + 'vh');
+    const dur = fast ? 2 + Math.random()*1.5 : 9 + Math.random()*8;
+    b.style.animationDuration = dur + 's';
+    b.firstChild.style.animationDuration = (.15 + Math.random()*.15) + 's';
+    $('bats').appendChild(b);
+    setTimeout(()=>b.remove(), dur*1000 + 200);
+  }
+  releaseBat(); setTimeout(releaseBat, 2500);
+  setInterval(()=>{ if (Math.random() < .6) releaseBat(); }, 5000);
+
+  // Geometría del frasco
+  const Y_BOTTOM = 456, Y_TOP = 72;
+  const levelToY = l => Y_BOTTOM - (l/100)*(Y_BOTTOM - Y_TOP);
+  [0,25,50,75,100].forEach(v=>{
+    const y = levelToY(v);
+    const x = v >= 75 ? 196 : (v === 0 ? 210 : 298);
+    const t = document.createElementNS(NS,'text');
+    t.setAttribute('x', x + 8); t.setAttribute('y', y + 4); t.textContent = v;
+    const l = document.createElementNS(NS,'line');
+    l.setAttribute('x1', x - 6); l.setAttribute('x2', x + 2); l.setAttribute('y1', y); l.setAttribute('y2', y);
+    l.setAttribute('stroke','#a693b4'); l.setAttribute('stroke-width','2');
+    $('scale').append(l,t);
+  });
+
+  let ctx, analyser, buf, baseline = -60, range = 40;
+  let level = 0, roundPeak = 0, running = false, calibrating = false, inRound = false;
+  let confirmClear = false, t = 0;
+
+  // Ranking guardado en este navegador
+  const KEY = 'gritometro-ranking';
+  let board = [];
+  try { board = JSON.parse(localStorage.getItem(KEY)) || []; } catch(e) { board = []; }
+  const saveBoard = () => { try { localStorage.setItem(KEY, JSON.stringify(board)); } catch(e){} };
+  function renderBoard(){
+    const ol = $('board'); ol.innerHTML = '';
+    board.sort((a,b)=>b.score-a.score).slice(0,10).forEach((r,i)=>{
+      const li = document.createElement('li');
+      const p = document.createElement('span'); p.className='pos'; p.textContent = (i+1)+'.';
+      const n = document.createElement('span'); n.textContent = r.name;
+      if (i === 0){ const c = document.createElement('span'); c.className='crown'; c.textContent='Rey del grito'; n.appendChild(c); }
+      const s = document.createElement('span'); s.className='pts'; s.textContent = r.score;
+      li.append(p,n,s); ol.appendChild(li);
+    });
+    $('boardEmpty').hidden = board.length > 0;
+  }
+  renderBoard();
+
+  // Burbujas
+  const bubbles = [];
+  function spawnBubble(){
+    const c = document.createElementNS(NS,'circle');
+    const b = { el:c, x: 40 + Math.random()*240, y: Y_BOTTOM, r: 2 + Math.random()*5, v: .6 + Math.random()*1.2, w: Math.random()*6 };
+    c.setAttribute('r', b.r); c.setAttribute('fill','#eaffd6'); c.setAttribute('fill-opacity','.55');
+    $('bubbles').appendChild(c); bubbles.push(b);
+  }
+
+  // Rayos
+  const cv = $('sparks'), g2 = cv.getContext('2d'), svgMain = $('flaskZone').querySelector('svg.flask');
+  function sizeCanvas(){
+    const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1;
+    cv.width = r.width*d; cv.height = r.height*d; g2.setTransform(d,0,0,d,0,0);
+  }
+  addEventListener('resize', sizeCanvas); sizeCanvas();
+  function bolt(x1,y1,x2,y2,spread){
+    g2.beginPath(); g2.moveTo(x1,y1);
+    for (let i=1;i<9;i++){
+      const k=i/9;
+      g2.lineTo(x1+(x2-x1)*k+(Math.random()-.5)*spread, y1+(y2-y1)*k+(Math.random()-.5)*spread);
+    }
+    g2.lineTo(x2,y2); g2.stroke();
+  }
+  function drawSparks(){
+    const zr = cv.getBoundingClientRect(), sr = svgMain.getBoundingClientRect();
+    g2.clearRect(0,0,zr.width,zr.height);
+    if (reduced || level < 55) return;
+    const ox = sr.left - zr.left, oy = sr.top - zr.top, sx = sr.width/320, sy = sr.height/500;
+    const n = level >= 98 ? 6 : Math.floor((level-55)/12)+1;
+    g2.strokeStyle = '#d6c2ff'; g2.shadowColor = '#a77bff'; g2.shadowBlur = 14; g2.lineWidth = 2;
+    for (let i=0;i<n;i++){
+      if (Math.random() < .55) continue;
+      const ang = Math.random()*Math.PI*2, rad = 70 + Math.random()*60;
+      bolt(ox+160*sx, oy+4*sy, ox+(160+Math.cos(ang)*rad)*sx, oy+(320+Math.sin(ang)*rad*.9)*sy, 26*sx);
+    }
+  }
+
+  function drawLiquid(){
+    const y = levelToY(level);
+    const amp = 2 + level/18;
+    let d = `M0,${Y_BOTTOM+40} L0,${y}`;
+    for (let x=0;x<=320;x+=10){
+      d += ` L${x},${(y + Math.sin(x/28 + t*3)*amp + Math.sin(x/11 - t*5)*amp*.4).toFixed(1)}`;
+    }
+    d += ` L320,${Y_BOTTOM+40} Z`;
+    $('liquid').setAttribute('d', d);
+    $('aura').setAttribute('opacity', (level/100*.18).toFixed(3));
+    // La calavera flota justo bajo la superficie
+    const sy = Math.min(Y_BOTTOM - 20, y + 26);
+    $('skull').setAttribute('transform', `translate(${(110 + Math.sin(t*.8)*20).toFixed(1)} ${sy.toFixed(1)}) rotate(${(Math.sin(t*1.3)*12).toFixed(1)})`);
+    $('skull').setAttribute('opacity', level > 6 ? .55 : 0);
+    // Calabazas
+    document.documentElement.style.setProperty('--glow', (.2 + level/100*.8 + (Math.random()*.08)).toFixed(2));
+
+    if (!reduced && Math.random() < .08 + level/90) spawnBubble();
+    for (let i=bubbles.length-1;i>=0;i--){
+      const b = bubbles[i];
+      b.y -= b.v * (1 + level/25);
+      b.el.setAttribute('cx', b.x + Math.sin(t*4 + b.w)*3); b.el.setAttribute('cy', b.y);
+      if (b.y < y - 2){ b.el.remove(); bubbles.splice(i,1); }
+    }
+  }
+
+
+  // Grumo: mascota que reacciona al grito
+  let fainted = false, sayLock = 0, lastMood = '';
+  const MOUTHS = {
+    bored:'<path d="M66,112 L98,110" stroke="#2a1640" stroke-width="4" stroke-linecap="round"/><path d="M74,111 L77,117 L80,111" fill="#fff"/>',
+    calm:'<path d="M64,108 Q82,122 100,108" stroke="#2a1640" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M72,112 L75,119 L78,113 Z M88,113 L91,118 L94,111 Z" fill="#fff"/>',
+    surprised:'<ellipse cx="82" cy="114" rx="9" ry="11" fill="#2a1640"/>',
+    scared:'<path d="M58,104 Q82,96 106,104 Q104,134 82,136 Q60,134 58,104 Z" fill="#2a1640"/><path d="M62,104 L66,113 L71,103 Z M76,101 L79,110 L83,101 Z M90,101 L93,111 L97,102 Z M98,126 L94,118 L90,128 Z M74,128 L70,119 L66,126 Z" fill="#fff"/><ellipse cx="82" cy="128" rx="9" ry="4" fill="#e0567a"/>',
+    faint:'<path d="M66,116 Q74,108 82,116 T98,116" stroke="#2a1640" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M96,116 Q100,128 95,132" stroke="#6fd3ff" stroke-width="3" fill="none"/>'
+  };
+  const LINES = {
+    bored:'Grrr… ¿nadie se atreve a gritar?',
+    calm:'¿Eso fue un grito o un bostezo?',
+    surprised:'¡Ey! Algo se escuchó por ahí…',
+    scared:'¡AAAH! ¡Bajen el volumen!'
+  };
+  function grumoBody(){
+    const n = 44, cx = 81, cy = 96, rx = 58, ry = 60;
+    const fur = 2.5 + level/100*9;
+    let d = '';
+    for (let i=0;i<=n;i++){
+      const a = i/n*Math.PI*2 - Math.PI/2;
+      const r = i%2 ? 1 : 1 + fur/rx;
+      const wob = Math.sin(t*6 + i)*(.4 + level/60);
+      const x = cx + Math.cos(a)*(rx*r + wob), y = cy + Math.sin(a)*(ry*r + wob);
+      d += (i ? ' L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1);
+    }
+    $('gBody').setAttribute('d', d + ' Z');
+  }
+  function grumoMood(){
+    if (fainted) return;
+    const m = level < 12 ? 'bored' : level < 40 ? 'calm' : level < 70 ? 'surprised' : 'scared';
+    // ojos: párpados caídos si está aburrido, pupilas chiquitas si está asustado
+    const lid = m === 'bored' ? 15 : 0;
+    $('lidL').setAttribute('height', lid); $('lidR').setAttribute('height', lid*.75);
+    const pr = m === 'scared' ? .5 : m === 'surprised' ? .75 : 1;
+    $('pupL').setAttribute('r', (7*pr).toFixed(1)); $('pupR').setAttribute('r', (5*pr).toFixed(1));
+    const look = Math.sin(t*.7)*3;
+    $('pupL').setAttribute('cx', (64+look).toFixed(1)); $('pupR').setAttribute('cx', (103+look).toFixed(1));
+    if (m !== lastMood){
+      lastMood = m;
+      $('gMouth').innerHTML = MOUTHS[m];
+      const up = m === 'scared';
+      $('armL').setAttribute('d', up ? 'M30,92 C16,80 14,64 22,54' : 'M28,100 C18,110 18,122 24,128');
+      $('armR').setAttribute('d', up ? 'M132,92 C146,80 148,64 140,54' : 'M134,100 C144,110 144,122 138,128');
+      $('grumo').classList.toggle('shake', up && !reduced);
+      if (performance.now() > sayLock) $('say').textContent = LINES[m];
+    }
+  }
+  function grumoSay(text, ms){ $('say').textContent = text; sayLock = performance.now() + ms; lastMood = ''; }
+  function grumoFaint(){
+    fainted = true;
+    $('grumo').classList.remove('shake'); $('grumo').classList.add('faint');
+    $('gEyes').setAttribute('opacity', 0); $('gX').setAttribute('opacity', 1);
+    $('gMouth').innerHTML = MOUTHS.faint;
+    grumoSay('…me desmayé del susto. ¡Qué grito!', 6000);
+    setTimeout(()=>{
+      fainted = false; lastMood = '';
+      $('grumo').classList.remove('faint');
+      $('gEyes').setAttribute('opacity', 1); $('gX').setAttribute('opacity', 0);
+    }, 3500);
+  }
+
+  function rmsDb(){
+    analyser.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (let i=0;i<buf.length;i++) sum += buf[i]*buf[i];
+    return 20*Math.log10(Math.max(Math.sqrt(sum/buf.length),1e-8));
+  }
+
+  async function calibrate(){
+    calibrating = true;
+    $('calHint').textContent = 'Calibrando… silencio por favor (2 s)';
+    const samples = [], t0 = performance.now();
+    await new Promise(res => {
+      (function grab(){
+        samples.push(rmsDb());
+        if (performance.now()-t0 < 2000) requestAnimationFrame(grab); else res();
+      })();
+    });
+    samples.sort((a,b)=>a-b);
+    baseline = samples[Math.floor(samples.length*0.7)] + 3;
+    calibrating = false;
+    $('calHint').textContent = 'Listo. El ruido del lugar quedó como cero.';
+  }
+
+  async function startMic(){
+    $('err').hidden = true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false }
+      });
+      ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const src = ctx.createMediaStreamSource(stream);
+      analyser = ctx.createAnalyser(); analyser.fftSize = 2048;
+      buf = new Float32Array(analyser.fftSize);
+      src.connect(analyser);
+      running = true;
+      $('status').textContent = 'Escuchando'; $('status').classList.add('on');
+      $('btnMic').disabled = true; $('btnCal').disabled = false; $('btnRound').disabled = false;
+      await calibrate();
+    } catch (e) {
+      $('err').hidden = false;
+      $('err').textContent = 'No se pudo usar el micrófono. Revisa que el navegador tenga permiso (ícono del candado junto a la dirección) y que la página se abra en Chrome o Edge.';
+    }
+  }
+
+  function loop(){
+    t += 1/60;
+    if (running){
+      const over = rmsDb() - baseline;
+      const target = calibrating ? 0 : Math.max(0, Math.min(100, over/range*100));
+      level += (target - level) * (target > level ? 0.5 : 0.07);
+      $('sDb').textContent = calibrating ? '–' : Math.max(0, over).toFixed(0);
+    }
+    const shown = Math.round(level);
+    $('readout').textContent = shown;
+    $('sNow').textContent = shown;
+    if (inRound && shown > roundPeak){
+      roundPeak = shown;
+      $('sPeak').textContent = roundPeak;
+      const py = levelToY(roundPeak);
+      $('peakLine').setAttribute('y1', py); $('peakLine').setAttribute('y2', py);
+      $('peakLine').setAttribute('opacity', '.8');
+    }
+    drawLiquid();
+    grumoBody(); grumoMood();
+    drawSparks();
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  function celebrate(){
+    const z = $('flaskZone');
+    z.classList.remove('full'); void z.offsetWidth; z.classList.add('full');
+    for (let i=0;i<14;i++) setTimeout(()=>releaseBat(true), i*90);
+    // risa de bruja sintetizada
+    const now = ctx.currentTime;
+    [0,.18,.36,.54,.72].forEach((d,i)=>{
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'square';
+      o.frequency.setValueAtTime(700 - i*40, now+d);
+      o.frequency.exponentialRampToValueAtTime(380 - i*30, now+d+.15);
+      g.gain.setValueAtTime(.0001, now+d);
+      g.gain.exponentialRampToValueAtTime(.08, now+d+.02);
+      g.gain.exponentialRampToValueAtTime(.0001, now+d+.16);
+      o.connect(g).connect(ctx.destination); o.start(now+d); o.stop(now+d+.17);
+    });
+  }
+
+  async function round(){
+    const name = $('name').value.trim() || 'Alma anónima';
+    $('btnRound').disabled = true; $('btnCal').disabled = true;
+    roundPeak = 0; $('sPeak').textContent = 0; $('peakLine').setAttribute('opacity','0');
+    for (const n of ['3','2','1']) { $('countdown').textContent = n + '…'; await new Promise(r=>setTimeout(r,800)); }
+    $('countdown').textContent = '¡GRITA!';
+    grumoSay('¡A ver, asústame!', 5200);
+    inRound = true;
+    await new Promise(r=>setTimeout(r,5000));
+    inRound = false;
+    const msg = roundPeak >= 100 ? '¡Grito legendario!' : roundPeak >= 70 ? 'Aterrador' : roundPeak >= 40 ? 'Da miedito' : 'Ni un gato se asusta';
+    $('countdown').textContent = `${name}: ${roundPeak} · ${msg}`;
+    board.push({ name, score: roundPeak });
+    saveBoard(); renderBoard();
+    if (roundPeak >= 100) { celebrate(); grumoFaint(); }
+    else grumoSay(roundPeak >= 70 ? `¡${name}, casi me haces llorar!` : roundPeak >= 40 ? `Mmm… ${name}, me dio un escalofrío.` : `${name}, ni me despeiné. ¡Otra vez!`, 6000);
+    $('name').value = '';
+    $('btnRound').disabled = false; $('btnCal').disabled = false;
+  }
+
+  $('btnMic').onclick = startMic;
+  $('btnCal').onclick = () => { if (!calibrating) calibrate(); };
+  $('btnRound').onclick = round;
+  $('name').addEventListener('keydown', e => { if (e.key === 'Enter' && !$('btnRound').disabled) round(); });
+  $('sens').oninput = e => { range = +e.target.value; $('sensVal').textContent = range; };
+  $('btnFs').onclick = () => { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(()=>{}); };
+  $('btnClear').onclick = () => {
+    if (!confirmClear){ confirmClear = true; $('btnClear').textContent = '¿Seguro? Toca otra vez'; setTimeout(()=>{confirmClear=false; $('btnClear').textContent='Borrar ranking';},3000); return; }
+    board = []; saveBoard(); renderBoard(); confirmClear = false; $('btnClear').textContent = 'Borrar ranking';
+  };
+})();
+</script>
+</body>
+</html>
