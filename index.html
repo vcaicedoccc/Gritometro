@@ -3,302 +3,445 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gritómetro</title>
+<title>Gritómetro · Configuración</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Creepster&family=Bungee&family=IBM+Plex+Mono:wght@400;600&family=Rubik:wght@600;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Creepster&family=Bungee&family=IBM+Plex+Mono:wght@400;600&family=Rubik:wght@400;600&display=swap">
 <style>
-/* Pantalla principal para el público: fondo 1920x1080 y barril animado encima; la barra roja
-   llena la ventana del barril, el nivel va arriba a la derecha y Boo da el mensaje final.
-   Todo se controla desde configuracion.html en otra pestaña. */
-:root{color-scheme:dark}
-html,body{height:100%;margin:0;background:#000;overflow:hidden}
-body.idle{cursor:none}
-svg.escena{display:block;width:100vw;height:100vh}
-#logo{cursor:pointer;outline:none}
-#logo .aro{opacity:0;transition:opacity .2s}
-#logo:hover .aro,#logo:focus-visible .aro{opacity:1}
-.globo{box-sizing:border-box;position:absolute;left:20px;right:50px;bottom:24px;padding:26px 32px;background:#fff;color:#2a1640;
-  border:6px solid #3d1f6b;border-radius:40px;font:800 40px/1.2 Rubik, system-ui, sans-serif;text-align:center;
-  box-shadow:0 10px 0 rgba(0,0,0,.35);transform-origin:100% 70%}
-.globo::after{content:"";position:absolute;right:-46px;top:58%;border:26px solid transparent;border-left:48px solid #3d1f6b;border-right:0}
-.globo::before{content:"";position:absolute;right:-34px;top:calc(58% + 9px);border:17px solid transparent;border-left:32px solid #fff;border-right:0;z-index:1}
-.globo.pop{animation:pop .45s cubic-bezier(.3,1.6,.5,1)}
-@keyframes pop{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
-#bats{position:fixed;inset:0;pointer-events:none;overflow:hidden}
-.bat{position:absolute;left:-80px;width:48px;animation:fly linear forwards}
-.bat svg{width:100%;height:auto;display:block;animation:flap .22s ease-in-out infinite alternate;transform-origin:center}
-@keyframes fly{to{transform:translate(calc(100vw + 160px), var(--dy))}}
-@keyframes flap{from{transform:scaleY(1)}to{transform:scaleY(.35)}}
-@media (prefers-reduced-motion:reduce){.globo.pop{animation:none}#bats{display:none}}
+/* Pestaña del operador y primera página del sitio: micrófono, ronda, sensibilidad y ranking.
+   La pantalla principal (pantalla.html) solo muestra el barril, el nivel y a Boo. */
+:root{
+  --bg:#110a1a;
+  --panel:#1b1226;
+  --line:#3a2850;
+  --fg:#f3ece6;
+  --muted:#a693b4;
+  --pumpkin:#ff7a1a;
+  --potion:#8cff3a;
+  --f-spooky:"Creepster", "Chiller", Impact, fantasy;
+  --f-display:"Bungee", Impact, "Arial Black", sans-serif;
+  --f-body:"Rubik", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:radial-gradient(ellipse at 20% 100%, #2a1340 0%, transparent 60%), var(--bg);
+  min-height:100vh;color:var(--fg);font-family:var(--f-body);font-size:15px;
+  padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));
+}
+header,.wrap{max-width:1100px;margin:0 auto}
+header{margin-bottom:18px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:12px}
+h1{font-family:var(--f-spooky);font-weight:400;font-size:clamp(40px,7vw,64px);margin:0;letter-spacing:.03em;line-height:.95;
+  color:var(--pumpkin);text-shadow:0 0 24px rgba(255,122,26,.55),0 4px 0 #5a1f00}
+.sub{color:var(--muted);margin:8px 0 0;font-size:14px;letter-spacing:.04em}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.status{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border:1px solid var(--line);border-radius:4px;color:var(--muted);background:rgba(17,10,26,.7)}
+.status.on{color:var(--potion);border-color:var(--potion)}
+.wrap{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+@media (max-width:760px){.wrap{grid-template-columns:1fr}}
+
+.card{background:linear-gradient(180deg,rgba(35,22,50,.92),rgba(27,18,38,.92));border:1px solid var(--line);border-radius:10px;padding:18px}
+.label{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button{font-family:var(--f-body);font-weight:600;font-size:15px;border-radius:8px;border:1px solid var(--line);background:#2a1c3a;color:var(--fg);padding:11px 16px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--pumpkin)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--pumpkin);outline-offset:2px}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:var(--pumpkin);color:#2a0f00;border-color:var(--pumpkin)}
+button.small{padding:6px 10px;font-size:13px}
+input[type=text]{flex:1;min-width:140px;font:inherit;background:#120b1b;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+input[type=range]{flex:1;accent-color:var(--pumpkin)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
+.stat b{display:block;font-family:var(--f-display);font-weight:400;font-size:26px;font-variant-numeric:tabular-nums}
+.stat small{color:var(--muted);font-size:12px}
+.countdown{font-family:var(--f-spooky);font-size:30px;letter-spacing:.04em;color:var(--potion);min-height:40px;margin:12px 0 4px;text-shadow:0 0 14px rgba(140,255,58,.5)}
+#board{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+#board li{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:6px;background:#140d1e;font-variant-numeric:tabular-nums}
+#board li:first-child{background:rgba(255,122,26,.12);border:1px solid rgba(255,122,26,.45)}
+#board li .pos{font-family:var(--f-mono);color:var(--muted)}
+#board li:first-child .pos{color:var(--pumpkin)}
+#board li .pts{font-family:var(--f-display);color:var(--pumpkin)}
+.guia{max-width:1100px;margin:0 auto 18px}
+.pasos{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;counter-reset:paso}
+.pasos li{counter-increment:paso;background:#140d1e;border-radius:8px;padding:12px 14px 14px;line-height:1.45;font-size:15px}
+.pasos li::before{content:counter(paso);display:block;font-family:var(--f-display);font-size:26px;color:var(--pumpkin);margin-bottom:4px}
+.pasos b{color:var(--potion);font-weight:600}
+.crown{font-family:var(--f-spooky);font-size:13px;color:var(--pumpkin);margin-left:8px;letter-spacing:.05em}
+.empty{color:var(--muted);font-size:14px;margin:0}
+.hint{color:var(--muted);font-size:13px;margin:8px 0 0;line-height:1.5}
+.err{color:#ff6b4a;font-size:14px;margin:8px 0 0}
 </style>
 </head>
 <body>
-<svg class="escena" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Nivel de grito">
-  <defs>
-    <linearGradient id="energia" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ff8a8a"/>
-      <stop offset=".3" stop-color="#ff2a2a"/>
-      <stop offset="1" stop-color="#a30000"/>
-    </linearGradient>
-    <filter id="brillo" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="6" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="difuso" x="-100%" y="-50%" width="300%" height="200%">
-      <feGaussianBlur stdDeviation="28"/>
-    </filter>
-    <!-- Ventana medida sobre assets/barril.png (417x1000): 98x420 px, centro (243,517), inclinada ~0.93° -->
-    <clipPath id="ventana"><rect x="-49" y="-210" width="98" height="420" rx="10"/></clipPath>
-  </defs>
+<header>
+  <div>
+    <h1>Gritómetro</h1>
+    <p class="sub">Configuración · deja esta pestaña abierta mientras se juega</p>
+  </div>
+  <div class="tools">
+    <span id="screen" class="status">Pantalla no detectada</span>
+    <span id="status" class="status">Micrófono apagado</span>
+    <button id="btnScreen">Abrir pantalla principal</button>
+  </div>
+</header>
 
-  <image href="assets/fondo.jpg" width="1920" height="1080"/>
+<section class="card guia" aria-labelledby="guiaTitulo">
+  <p class="label" id="guiaTitulo">Cómo se juega</p>
+  <ol class="pasos">
+    <li>Toca <b>Activar micrófono</b> y pide silencio 2 segundos: el ruido del lugar queda como cero.</li>
+    <li>Toca <b>Abrir pantalla principal</b> y llévala al televisor. Doble clic o tecla F: pantalla completa.</li>
+    <li>En la pantalla, <b>toca a Boo</b> (la niña de abajo a la derecha): cuenta 3, 2, 1 y el niño grita 5 segundos.</li>
+    <li>Boo le da un mensaje. Para el siguiente niño, <b>toca otra vez a Boo</b> para volver a gritar.</li>
+    <li>Para volver a estos ajustes, toca el <b>logo de Monsters, Inc.</b> (la M azul de arriba a la derecha).</li>
+  </ol>
+  <p class="hint">Deja esta pestaña abierta mientras se juega: aquí se escucha el micrófono. El barril se mueve con cualquier sonido, pero solo un grito fuerte lo llena.</p>
+</section>
 
-  <!-- Barril animado: su transformación cambia en cada cuadro según el nivel -->
-  <g id="barril" transform="translate(862 540) rotate(-3) scale(1.04) translate(-208.5 -500)">
-    <image href="assets/barril.png" width="417" height="1000"/>
-    <g transform="translate(243 517) rotate(.93)">
-      <rect id="halo" x="-75" y="-236" width="150" height="472" rx="40" fill="#ff3030" opacity="0" filter="url(#difuso)"/>
-      <g clip-path="url(#ventana)">
-        <path id="liquido" fill="url(#energia)" opacity=".93" d=""/>
-        <g id="burbujas"></g>
-        <line id="picoLinea" x1="-60" x2="60" y1="210" y2="210" stroke="#ffffff" stroke-width="3" stroke-dasharray="8 6" opacity="0"/>
-      </g>
-    </g>
-  </g>
-  <path id="rayos" fill="none" stroke="#ffe0e0" stroke-width="3" stroke-linejoin="round" filter="url(#brillo)" d=""/>
-
-  <!-- Panel arriba a la derecha, entre el barril y el logo -->
-  <g text-anchor="middle">
-    <text id="estado" x="1410" y="215" font-family="Creepster, Impact, fantasy" font-size="88" letter-spacing="3" fill="#ffe14d" filter="url(#brillo)"></text>
-    <text id="ayuda" x="1410" y="262" font-family="IBM Plex Mono, monospace" font-size="24" fill="#a693b4"></text>
-    <text id="nivel" x="1410" y="512"font-family="Bungee, Impact, sans-serif" font-size="300" fill="#ffffff" stroke="#000" stroke-width="10" paint-order="stroke" style="font-variant-numeric:tabular-nums">0</text>
-    <text id="etiqueta" x="1410" y="566"font-family="IBM Plex Mono, monospace" font-size="30" letter-spacing="10" fill="#a693b4">NIVEL</text>
-    <text id="picoTexto" x="1410" y="620"font-family="IBM Plex Mono, monospace" font-weight="600" font-size="34" fill="#f3ece6"></text>
-  </g>
-
-  <!-- Logo: botón que lleva a la configuración -->
-  <g id="logo" role="button" tabindex="0" aria-label="Abrir la configuración">
-    <circle class="aro" cx="1811" cy="110" r="96" fill="none" stroke="#ffe14d" stroke-width="6"/>
-    <circle cx="1811" cy="110" r="90" fill="transparent"/>
-    <title>Abrir la configuración</title>
-  </g>
-
-  <!-- Boo: botón que inicia la siguiente ronda -->
-  <g id="boo" role="button" tabindex="0" aria-label="Iniciar ronda de grito" style="cursor:pointer;outline:none">
-    <path d="M1312,1080 L1312,780 Q1420,640 1600,650 Q1790,660 1900,790 L1900,1080 Z" fill="transparent"/>
-    <title>Toca a Boo para gritar</title>
-  </g>
-
-  <!-- Globo de Boo con el mensaje al terminar la ronda; puede quedar encima del barril -->
-  <foreignObject x="730" y="560" width="630" height="440" id="globoZona" visibility="hidden">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:630px;height:440px">
-      <div class="globo" id="globo"></div>
+<div class="wrap">
+  <div class="col">
+    <div class="card">
+      <p class="label">Micrófono</p>
+      <div class="row">
+        <button class="primary" id="btnMic">Activar micrófono</button>
+        <button id="btnCal" disabled>Recalibrar silencio</button>
+        <button id="btnBell">Probar campana</button>
+      </div>
+      <p class="hint" id="calHint">Al activar, el medidor escucha 2 segundos el ruido del lugar para tomarlo como cero. Pidan silencio en ese momento.</p>
+      <p class="err" id="err" hidden></p>
     </div>
-  </foreignObject>
-</svg>
-<div id="bats" aria-hidden="true"></div>
+
+    <div class="card">
+      <p class="label">Ronda de grito</p>
+      <div class="row">
+        <button class="primary" id="btnRound" disabled>¡A gritar! (5 s)</button>
+      </div>
+      <p class="hint">Lo normal es iniciarla tocando a Boo en la pantalla principal (o con la barra espaciadora allí). Este botón hace lo mismo.</p>
+      <p class="countdown" id="countdown" aria-live="polite"></p>
+      <p class="hint" id="msg" style="margin:0 0 6px"></p>
+      <div class="stats">
+        <div class="stat"><b id="sNow">0</b><small>Nivel ahora</small></div>
+        <div class="stat"><b id="sPeak">0</b><small>Pico de la ronda</small></div>
+        <div class="stat"><b id="sDb">–</b><small>dB sobre ambiente</small></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="label">Sensibilidad</p>
+      <p class="hint" style="margin:0 0 6px">Ignorar ruidos de menos de <b id="gateVal">20</b> dB sobre el ambiente</p>
+      <div class="row">
+        <span class="hint" style="margin:0">0</span>
+        <input type="range" id="gate" min="0" max="40" value="20" aria-label="Decibeles sobre el ambiente que se ignoran">
+        <span class="hint" style="margin:0">40</span>
+      </div>
+      <p class="hint" style="margin:14px 0 6px">Dificultad: <b id="sensVal">35</b> dB más para llenar el barril</p>
+      <div class="row">
+        <span class="hint" style="margin:0">Fácil</span>
+        <input type="range" id="sens" min="15" max="60" value="35" aria-label="Decibeles por encima del umbral para llenar el barril">
+        <span class="hint" style="margin:0">Difícil</span>
+      </div>
+      <p class="hint">Hoy el barril se llena con <b id="fullVal">55</b> dB sobre el ambiente, y la parte alta cuesta más que la baja. Prueben con un grito fuerte mirando «dB sobre ambiente»: si todos llegan a 100, suban la dificultad. Estos valores quedan guardados en este navegador.</p>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <p class="label" style="margin:0">Salón de los gritos</p>
+        <button id="btnClear" class="small">Borrar ranking</button>
+      </div>
+      <ol id="board"></ol>
+      <p class="empty" id="boardEmpty">Aún nadie se ha atrevido a gritar.</p>
+    </div>
+  </div>
+</div>
 
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const NS = 'http://www.w3.org/2000/svg';
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const canal = new BroadcastChannel('gritometro');
-  window.name = 'gritometro-pantalla'; // el botón de la configuración la busca por este nombre
-  const MEDIO = 210, ALTO = 420;
-  const levelToY = l => MEDIO - (l/100)*ALTO;
 
-  // Estado que envía la pestaña de configuración. Si hay dos configuraciones abiertas,
-  // manda la que tiene el micrófono encendido.
-  let e = null, recibido = 0, level = 0, t = 0, fiesta = 0;
-  canal.onmessage = ({data}) => {
-    if (data.t === 'estado'){
-      const now = performance.now();
-      if (!data.mic && e && e.mic && now - recibido < 1000) return;
-      e = data; recibido = now;
-    }
-    else if (data.t === 'celebrar') celebrate();
+  let ctx = null, stream = null, baseline = -60, gate = 20, range = 35, level = 0, sonido = 0, lastTick = 0;
+  let calib = null, ronda = null, pico = 0, fase = 'espera', texto = '', mensaje = '';
+  let confirmClear = false, pantallaVista = 0;
+  window.name = 'gritometro-config'; // el logo de Monsters, Inc. en la pantalla la busca por este nombre
+
+  // Mensajes que Boo le dice al participante al terminar. Se elige uno al azar del nivel
+  // alcanzado, sin repetir el último.
+  const MENSAJES = {
+    legendario: [
+      '¡Me desmayé del susto! ¡Qué grito!',
+      '¡Ese grito llenó el barril entero! ¡Monsters, Inc. te quiere contratar!',
+      '¡WOW! ¡Con ese grito hay luz para toda Monstruópolis!',
+      '¡Eres el asustador número uno! ¡Sulley está temblando!',
+      '¡Grito legendario! ¡Mike dice que eres una estrella!',
+      '¡Rompiste el Gritómetro! ¡Eres una leyenda!',
+      '¡Uy! ¡Hasta los monstruos se taparon los oídos!',
+      '¡Bravo! ¡Ese grito se escuchó hasta en la puerta de mi cuarto!'
+    ],
+    aterrador: [
+      '¡Casi me haces llorar!',
+      '¡Qué grito! ¡Casi llenas el barril!',
+      '¡Uff! ¡Un poquito más y llegas a 100!',
+      '¡A Mike casi se le cae el lente del susto!',
+      '¡Ese grito dio miedo de verdad!',
+      '¡Muy bien! ¡Los monstruos están impresionados!',
+      '¡Tienes voz de monstruo campeón!'
+    ],
+    miedito: [
+      'Mmm… me dio un escalofrío.',
+      '¡Buen grito! ¡Ya casi asustas a Sulley!',
+      '¡El barril se está llenando! ¡Sigue así!',
+      '¡Bien! ¡Ese grito tiene poder de monstruo!',
+      '¡Me hiciste saltar un poquito!',
+      '¡Vas muy bien! ¡La próxima llenas el barril!',
+      '¡A Randall se le pusieron las escamas de punta!'
+    ],
+    suave: [
+      'Ni me despeiné. ¡Otra vez!',
+      '¡Ese fue un grito de gatito! ¡Miau! ¡Otra vez!',
+      '¡Vamos! ¡Respira hondo y grita con todas tus fuerzas!',
+      '¡El barril tiene hambre de gritos! ¡Dale más!',
+      '¡Eso fue un susurro de monstruo! ¡Tú puedes más!',
+      '¡Calentando motores! ¡La próxima va con todo!',
+      '¡Mike dice que tú puedes gritar más fuerte!'
+    ]
   };
-  const ping = () => canal.postMessage({ t:'ping' });
-  ping(); setInterval(ping, 1500);
-
-  const set = (id, v) => { const el = $(id); if (el.textContent !== String(v)) el.textContent = v; };
-  // Ajusta el texto al ancho disponible para nombres o mensajes largos
-  function fit(id, max){
-    const el = $(id);
-    el.removeAttribute('textLength');
-    if (el.textContent && el.getComputedTextLength() > max){
-      el.setAttribute('textLength', max); el.setAttribute('lengthAdjust', 'spacingAndGlyphs');
-    }
-  }
-  const setFit = (id, v, max) => { const el = $(id); if (el.textContent !== String(v)){ el.textContent = v; fit(id, max); } };
-
-  // Burbujas dentro de la ventana
-  const bubbles = [];
-  function spawnBubble(){
-    const c = document.createElementNS(NS,'circle');
-    const b = { el:c, x: -40 + Math.random()*80, y: MEDIO, r: 2 + Math.random()*4, v: .6 + Math.random()*1.2, w: Math.random()*6 };
-    c.setAttribute('r', b.r); c.setAttribute('fill','#ffd6d6'); c.setAttribute('fill-opacity','.6');
-    $('burbujas').appendChild(c); bubbles.push(b);
+  const ultimoMensaje = {};
+  function elegirMensaje(nivel){
+    const lista = MENSAJES[nivel];
+    let i = Math.floor(Math.random()*lista.length);
+    if (lista.length > 1 && i === ultimoMensaje[nivel]) i = (i + 1) % lista.length;
+    ultimoMensaje[nivel] = i;
+    return lista[i];
   }
 
-  function drawLiquid(){
-    const y = levelToY(level);
-    const amp = 1.5 + level/30;
-    let d = `M-60,${MEDIO+20} L-60,${y}`;
-    for (let x=-60;x<=60;x+=6){
-      d += ` L${x},${(y + Math.sin(x/14 + t*3)*amp + Math.sin(x/6 - t*5)*amp*.4).toFixed(1)}`;
-    }
-    $('liquido').setAttribute('d', d + ` L60,${MEDIO+20} Z`);
-    $('halo').setAttribute('opacity', (level/100*.6).toFixed(3));
+  // Sensibilidad guardada en este navegador
+  const SENS_KEY = 'gritometro-sensibilidad';
+  try { const s = JSON.parse(localStorage.getItem(SENS_KEY)); if (s){ gate = s.gate; range = s.range; } } catch(e){}
+  function showSens(){
+    $('gate').value = gate; $('sens').value = range;
+    $('gateVal').textContent = gate; $('sensVal').textContent = range; $('fullVal').textContent = gate + range;
+    try { localStorage.setItem(SENS_KEY, JSON.stringify({ gate, range })); } catch(e){}
+  }
+  showSens();
 
-    if (!reduced && level > 2 && Math.random() < .08 + level/90) spawnBubble();
-    for (let i=bubbles.length-1;i>=0;i--){
-      const b = bubbles[i];
-      b.y -= b.v * (1 + level/25);
-      b.el.setAttribute('cx', b.x + Math.sin(t*4 + b.w)*3); b.el.setAttribute('cy', b.y);
-      if (b.y < y - 2){ b.el.remove(); bubbles.splice(i,1); }
-    }
+  // Ranking guardado en este navegador
+  const KEY = 'gritometro-ranking';
+  let board = [];
+  try { board = JSON.parse(localStorage.getItem(KEY)) || []; } catch(e) { board = []; }
+  const saveBoard = () => { try { localStorage.setItem(KEY, JSON.stringify(board)); } catch(e){} };
+  function renderBoard(){
+    const ol = $('board'); ol.innerHTML = '';
+    board.sort((a,b)=>b.score-a.score).slice(0,10).forEach((r,i)=>{
+      const li = document.createElement('li');
+      const p = document.createElement('span'); p.className='pos'; p.textContent = (i+1)+'.';
+      const n = document.createElement('span'); n.textContent = r.name;
+      if (i === 0){ const c = document.createElement('span'); c.className='crown'; c.textContent='Rey del grito'; n.appendChild(c); }
+      const s = document.createElement('span'); s.className='pts'; s.textContent = r.score;
+      li.append(p,n,s); ol.appendChild(li);
+    });
+    $('boardEmpty').hidden = board.length > 0;
+  }
+  renderBoard();
+
+  // Estado que dibuja la pantalla principal
+  function emitir(){
+    canal.postMessage({ t:'estado', mic: !!ctx, nivel: level, sonido, pico, fase, texto, mensaje });
+  }
+  canal.onmessage = ({data}) => {
+    if (data.t === 'iniciar'){ startRound(); return; } // tocaron a Boo en la pantalla principal
+    if (data.t !== 'ping') return;
+    pantallaVista = performance.now();
+    $('screen').textContent = 'Pantalla conectada'; $('screen').classList.add('on');
+    emitir();
+  };
+  setInterval(() => {
+    if (performance.now() - pantallaVista > 5000){ $('screen').textContent = 'Pantalla no detectada'; $('screen').classList.remove('on'); }
+  }, 2000);
+
+  function botones(){
+    $('btnCal').disabled = !ctx || !!calib || !!ronda;
+    $('btnRound').disabled = !ctx || !!calib || !!ronda;
   }
 
-  // Movimiento del barril: tiembla poco con el grito y se sacude fuerte al llegar a 100
-  function moveBarrel(){
-    let rot = 0, tx = 0, ty = 0;
-    if (!reduced){
-      const fuerte = level >= 99.5 || performance.now() < fiesta;
-      if (fuerte){
-        rot = Math.sin(t*38)*7 + (Math.random()-.5)*3;
-        tx = (Math.random()-.5)*36; ty = (Math.random()-.5)*20;
-      } else {
-        const k = level/100;
-        rot = Math.sin(t*22)*2.2*k;
-        tx = (Math.random()-.5)*8*k; ty = (Math.random()-.5)*4*k;
+  function calibrate(){
+    calib = { t0: performance.now(), muestras: [] };
+    fase = 'calibrando'; texto = 'Silencio…'; mensaje = '';
+    $('calHint').textContent = 'Calibrando… silencio por favor (2 s)';
+    botones(); emitir();
+  }
+  function cerrarCalibracion(){
+    const m = calib.muestras.sort((a,b)=>a-b);
+    baseline = m[Math.floor(m.length*0.7)] + 3;
+    calib = null; fase = 'espera'; texto = '';
+    $('calHint').textContent = 'Listo. El ruido del lugar quedó como cero.';
+    botones();
+  }
+
+  // Cada bloque de audio avanza medición, calibración y ronda. No depende de temporizadores,
+  // que el navegador frena cuando esta pestaña no está visible.
+  function tick(rms){
+    const now = performance.now();
+    const dt = lastTick ? Math.min(.25, (now - lastTick)/1000) : 0;
+    lastTick = now;
+    const db = 20*Math.log10(Math.max(rms, 1e-8));
+    if (calib){
+      calib.muestras.push(db);
+      if (now - calib.t0 >= 2000) cerrarCalibracion();
+    }
+    const over = db - baseline;
+    // Por debajo del umbral no cuenta; encima, la curva hace que la parte alta cueste más
+    const x = Math.max(0, Math.min(1, (over - gate)/range));
+    const target = calib ? 0 : 100*Math.pow(x, 1.5);
+    // Sube en ~0.1 s y baja despacio (factores por cuadro a 60 fps, ajustados al intervalo
+    // real): un aplauso o un golpe corto no alcanzan a llenar; un grito sostenido sí
+    const k = target > level ? 0.15 : 0.07;
+    level += (target - level) * (1 - Math.pow(1 - k, dt*60));
+    // Movimiento del barril: responde a cualquier sonido desde 2 dB sobre el ambiente, sin
+    // umbral ni dificultad, para que los niños vean que los escucha aunque no llenen
+    const s = calib ? 0 : Math.sqrt(Math.max(0, Math.min(1, (over - 2)/28)));
+    sonido += (s - sonido) * (1 - Math.pow(1 - (s > sonido ? .5 : .12), dt*60));
+    if (ronda){
+      if (fase === 'grita'){
+        ronda.picoDb = Math.max(ronda.picoDb, over);
+        if (!ronda.campana && level >= 99.5){ ronda.campana = true; campana(); } // barril lleno
       }
+      avanzarRonda(now);
     }
-    $('barril').setAttribute('transform',
-      `translate(${(862+tx).toFixed(1)} ${(540+ty).toFixed(1)}) rotate(${(-3+rot).toFixed(2)}) scale(1.04) translate(-208.5 -500)`);
+
+    const shown = Math.round(level);
+    $('sNow').textContent = shown;
+    $('sPeak').textContent = pico;
+    $('sDb').textContent = calib ? '–' : Math.max(0, over).toFixed(0);
+    emitir();
   }
 
-  // Rayos alrededor del barril cuando el grito es fuerte
-  function bolt(x1,y1,x2,y2,spread){
-    let d = `M${x1.toFixed(0)},${y1.toFixed(0)}`;
-    for (let i=1;i<9;i++){
-      const k=i/9;
-      d += ` L${(x1+(x2-x1)*k+(Math.random()-.5)*spread).toFixed(0)},${(y1+(y2-y1)*k+(Math.random()-.5)*spread).toFixed(0)}`;
+  async function startMic(){
+    $('err').hidden = true;
+    $('btnMic').disabled = true;
+    try {
+      const st = await navigator.mediaDevices.getUserMedia({
+        audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false }
+      });
+      const ac = new (window.AudioContext||window.webkitAudioContext)();
+      await ac.audioWorklet.addModule('medidor.js');
+      const nodo = new AudioWorkletNode(ac, 'medidor');
+      ac.createMediaStreamSource(st).connect(nodo);
+      nodo.connect(ac.destination); // sale en silencio; solo mantiene el nodo activo
+      nodo.port.onmessage = e => { if (ctx === ac) tick(e.data); };
+      ctx = ac; stream = st;
+      $('status').textContent = 'Escuchando'; $('status').classList.add('on');
+      $('btnMic').textContent = 'Apagar micrófono'; $('btnMic').classList.remove('primary');
+      $('btnMic').disabled = false;
+      calibrate();
+    } catch (e) {
+      $('btnMic').disabled = false;
+      $('err').hidden = false;
+      $('err').textContent = 'No se pudo usar el micrófono. Revisa que el navegador tenga permiso (ícono del candado junto a la dirección) y que la página se abra en Chrome o Edge.';
     }
-    return d + ` L${x2.toFixed(0)},${y2.toFixed(0)}`;
-  }
-  function drawSparks(){
-    if (reduced || level < 55){ $('rayos').setAttribute('d', ''); return; }
-    const n = level >= 98 ? 6 : Math.floor((level-55)/12)+1;
-    let d = '';
-    for (let i=0;i<n;i++){
-      if (Math.random() < .55) continue;
-      const ang = Math.random()*Math.PI*2, rad = 260 + Math.random()*140;
-      const sx = 862 + (Math.random()-.5)*80, sy = 540 + (Math.random()-.5)*380;
-      d += bolt(sx, sy, 862 + Math.cos(ang)*rad*.8, 540 + Math.sin(ang)*rad*1.3, 40) + ' ';
-    }
-    $('rayos').setAttribute('d', d);
   }
 
-  let globoActual = '';
-  function drawGlobo(vivo){
-    const msg = vivo && e.fase === 'resultado' ? (e.mensaje || '') : '';
-    if (msg === globoActual) return;
-    globoActual = msg;
-    const g = $('globo');
-    g.textContent = msg;
-    $('globoZona').setAttribute('visibility', msg ? 'visible' : 'hidden');
-    if (msg){ g.classList.remove('pop'); void g.offsetWidth; g.classList.add('pop'); }
+  // Apaga el micrófono (el navegador deja de mostrar que lo está usando) y cancela la ronda
+  function stopMic(){
+    stream.getTracks().forEach(tr => tr.stop());
+    ctx.close();
+    ctx = null; stream = null; calib = null; ronda = null; lastTick = 0;
+    level = 0; sonido = 0; pico = 0; fase = 'espera'; texto = ''; mensaje = '';
+    $('status').textContent = 'Micrófono apagado'; $('status').classList.remove('on');
+    $('btnMic').textContent = 'Activar micrófono'; $('btnMic').classList.add('primary');
+    $('calHint').textContent = 'Micrófono apagado. Al activarlo de nuevo se vuelve a medir el silencio 2 segundos.';
+    $('countdown').textContent = ''; $('msg').textContent = '';
+    $('sNow').textContent = 0; $('sPeak').textContent = 0; $('sDb').textContent = '–';
+    botones(); emitir();
   }
 
-  function drawPanel(vivo){
-    if (!vivo){
-      setFit('estado', 'Esperando…', 580);
-      setFit('ayuda', 'Toca el logo para abrir la configuración', 580);
-    } else if (!e.mic){
-      setFit('estado', 'Micrófono apagado', 580); setFit('ayuda', 'Actívalo en la configuración', 580);
-    } else if (e.fase === 'espera'){
-      setFit('estado', '¿Quién se atreve?', 580); setFit('ayuda', 'Toca a Boo para gritar', 580);
-    } else if (e.fase === 'resultado'){
-      setFit('estado', e.texto, 580); setFit('ayuda', 'Toca a Boo para el siguiente grito', 580);
+  function startRound(){
+    if (!ctx || calib || ronda) return;
+    ronda = { t0: performance.now(), picoDb: 0 };
+    pico = 0; fase = 'cuenta'; texto = '3…'; mensaje = ''; $('msg').textContent = '';
+    botones(); emitir();
+  }
+  function avanzarRonda(now){
+    const el = now - ronda.t0;
+    if (el < 2400){
+      fase = 'cuenta'; texto = (3 - Math.floor(el/800)) + '…';
+    } else if (el < 7400){
+      fase = 'grita'; texto = '¡GRITA!';
+      pico = Math.max(pico, Math.round(level));
     } else {
-      setFit('estado', e.texto, 580); set('ayuda', '');
+      terminarRonda();
+      return;
     }
-    const resultado = vivo && e.fase === 'resultado';
-    const n = resultado ? e.pico : Math.round(level);
-    set('nivel', n);
-    $('nivel').setAttribute('fill', n >= 70 ? '#ff3b3b' : n >= 40 ? '#ffe14d' : '#ffffff');
-    set('etiqueta', resultado ? 'PUNTAJE' : 'NIVEL');
-    const enRonda = vivo && (e.fase === 'grita' || resultado);
-    set('picoTexto', enRonda ? `Pico de la ronda: ${e.pico}` : '');
-    const py = levelToY(enRonda ? e.pico : 0);
-    $('picoLinea').setAttribute('y1', py); $('picoLinea').setAttribute('y2', py);
-    $('picoLinea').setAttribute('opacity', enRonda && e.pico > 0 ? '.85' : '0');
+    $('countdown').textContent = texto;
+  }
+  function terminarRonda(){
+    const msg = pico >= 100 ? '¡Grito legendario!' : pico >= 70 ? 'Aterrador' : pico >= 40 ? 'Da miedito' : 'Ni un gato se asusta';
+    mensaje = elegirMensaje(pico >= 100 ? 'legendario' : pico >= 70 ? 'aterrador' : pico >= 40 ? 'miedito' : 'suave');
+    const picoDb = Math.round(ronda.picoDb);
+    fase = 'resultado'; texto = msg; ronda = null;
+    $('countdown').textContent = `${pico} · ${msg}`;
+    $('msg').textContent = `Boo dice: ${mensaje} · Grito más fuerte: ${picoDb} dB sobre el ambiente (llena con ${gate + range}).`;
+    const hora = new Date().toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
+    board.push({ name: `Grito #${board.length + 1} · ${hora}`, score: pico });
+    saveBoard(); renderBoard();
+    botones();
+    if (pico >= 100) celebrate();
   }
 
-  function loop(){
-    t += 1/60;
-    const vivo = !!e && performance.now() - recibido < 4000;
-    const target = vivo && e.mic ? e.nivel : 0;
-    level += (target - level) * .5;
-    drawLiquid(); moveBarrel(); drawSparks(); drawPanel(vivo); drawGlobo(vivo);
-    requestAnimationFrame(loop);
+  // Campanita de barril lleno, sintetizada: parciales de campana que se apagan solos
+  let ctxPrueba = null;
+  function campana(){
+    const ac = ctx || (ctxPrueba = ctxPrueba || new (window.AudioContext||window.webkitAudioContext)());
+    const now = ac.currentTime, f0 = 1318.5; // Mi6
+    const out = ac.createGain(); out.gain.value = .35; out.connect(ac.destination);
+    [[1,1,1.8],[2,.5,1.2],[2.76,.35,.9],[5.4,.2,.5],[8.93,.12,.3]].forEach(([r,a,d])=>{
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = f0*r;
+      g.gain.setValueAtTime(.0001, now);
+      g.gain.exponentialRampToValueAtTime(a, now+.005);
+      g.gain.exponentialRampToValueAtTime(.0001, now+d);
+      o.connect(g).connect(out); o.start(now); o.stop(now+d+.05);
+    });
   }
-  loop();
 
-  // Celebración al llegar a 100
-  const BAT = '<svg viewBox="0 0 48 22"><path fill="#07040b" d="M0,10 C6,2 12,4 16,10 C18,6 20,6 22,4 L24,8 L26,4 C28,6 30,6 32,10 C36,4 42,2 48,10 C42,10 38,14 36,18 C32,14 28,16 24,20 C20,16 16,14 12,18 C10,14 6,10 0,10 Z"/></svg>';
-  function releaseBat(){
-    if (reduced) return;
-    const b = document.createElement('div');
-    b.className = 'bat'; b.innerHTML = BAT;
-    b.style.width = (40 + Math.random()*50) + 'px';
-    b.style.top = (20 + Math.random()*60) + 'vh';
-    b.style.setProperty('--dy', ((Math.random()-.5)*30) + 'vh');
-    const dur = 2 + Math.random()*1.5;
-    b.style.animationDuration = dur + 's';
-    b.firstChild.style.animationDuration = (.15 + Math.random()*.15) + 's';
-    $('bats').appendChild(b);
-    setTimeout(()=>b.remove(), dur*1000 + 200);
-  }
   function celebrate(){
-    fiesta = performance.now() + 1800;
-    for (let i=0;i<14;i++) setTimeout(releaseBat, i*90);
+    canal.postMessage({ t:'celebrar' });
+    // risa de bruja sintetizada
+    const now = ctx.currentTime;
+    [0,.18,.36,.54,.72].forEach((d,i)=>{
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'square';
+      o.frequency.setValueAtTime(700 - i*40, now+d);
+      o.frequency.exponentialRampToValueAtTime(380 - i*30, now+d+.15);
+      g.gain.setValueAtTime(.0001, now+d);
+      g.gain.exponentialRampToValueAtTime(.08, now+d+.02);
+      g.gain.exponentialRampToValueAtTime(.0001, now+d+.16);
+      o.connect(g).connect(ctx.destination); o.start(now+d); o.stop(now+d+.17);
+    });
   }
 
-  // Logo → configuración. Si la configuración ya está abierta desde aquí, solo la enfoca
-  // (recargarla apagaría el micrófono); si no, la abre en otra pestaña.
-  function openConfig(){
-    const w = window.open('', 'gritometro-config');
+  $('btnMic').onclick = () => { if (ctx) stopMic(); else startMic(); };
+  $('btnCal').onclick = () => { if (!calib && !ronda) calibrate(); };
+  $('btnRound').onclick = startRound;
+  // Lleva a la pantalla del Gritómetro: si ya está abierta desde aquí, pasa a ella; si no, la abre
+  $('btnScreen').onclick = () => {
+    const w = window.open('', 'gritometro-pantalla');
     if (!w) return;
     let blank = true;
     try { blank = w.location.href === 'about:blank'; } catch(err) { blank = false; }
-    if (blank) w.location.href = new URL('configuracion.html', location.href).href; else w.focus();
-  }
-  $('logo').addEventListener('click', ev => { ev.stopPropagation(); openConfig(); });
-  $('logo').addEventListener('dblclick', ev => ev.stopPropagation());
-  $('logo').addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); openConfig(); } });
-
-  // Boo (o la barra espaciadora) inicia la siguiente ronda; la configuración decide si se puede
-  const iniciar = () => canal.postMessage({ t:'iniciar' });
-  $('boo').addEventListener('click', ev => { ev.stopPropagation(); iniciar(); });
-  $('boo').addEventListener('dblclick', ev => ev.stopPropagation());
-  $('boo').addEventListener('keydown', ev => { if (ev.key === 'Enter'){ ev.preventDefault(); iniciar(); } });
-
-  // Pantalla completa con doble clic o tecla F; el cursor se oculta si no se mueve
-  const toggleFs = () => { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(()=>{}); };
-  addEventListener('dblclick', toggleFs);
-  addEventListener('keydown', ev => {
-    if (ev.key === ' '){ ev.preventDefault(); iniciar(); }
-    else if ((ev.key === 'f' || ev.key === 'F') && ev.target === document.body) toggleFs();
-  });
-  let idleTimer;
-  addEventListener('mousemove', () => {
-    document.body.classList.remove('idle');
-    clearTimeout(idleTimer); idleTimer = setTimeout(() => document.body.classList.add('idle'), 2500);
-  });
+    if (blank) w.location.href = new URL('pantalla.html', location.href).href; else w.focus();
+  };
+  $('btnBell').onclick = campana;
+  $('gate').oninput = e => { gate = +e.target.value; showSens(); };
+  $('sens').oninput = e => { range = +e.target.value; showSens(); };
+  $('btnClear').onclick = () => {
+    if (!confirmClear){ confirmClear = true; $('btnClear').textContent = '¿Seguro? Toca otra vez'; setTimeout(()=>{confirmClear=false; $('btnClear').textContent='Borrar ranking';},3000); return; }
+    board = []; saveBoard(); renderBoard(); confirmClear = false; $('btnClear').textContent = 'Borrar ranking';
+  };
+  emitir();
 })();
 </script>
 </body>

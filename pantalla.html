@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gritómetro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Creepster&family=Bungee&family=IBM+Plex+Mono:wght@400;600&family=Rubik:wght@600;800&display=swap">
+<style>
+/* Pantalla principal para el público: fondo 1920x1080 y barril animado encima; la barra roja
+   llena la ventana del barril, el nivel va arriba a la derecha y Boo da el mensaje final.
+   Todo se controla desde la configuración (index.html) en otra pestaña. */
+:root{color-scheme:dark}
+html,body{height:100%;margin:0;background:#000;overflow:hidden}
+body.idle{cursor:none}
+svg.escena{display:block;width:100vw;height:100vh}
+#logo{cursor:pointer;outline:none}
+#logo .aro{opacity:0;transition:opacity .2s}
+#logo:hover .aro,#logo:focus-visible .aro{opacity:1}
+.globo{box-sizing:border-box;position:absolute;left:20px;right:50px;bottom:24px;padding:26px 32px;background:#fff;color:#2a1640;
+  border:6px solid #3d1f6b;border-radius:40px;font:800 40px/1.2 Rubik, system-ui, sans-serif;text-align:center;
+  box-shadow:0 10px 0 rgba(0,0,0,.35);transform-origin:100% 70%}
+.globo::after{content:"";position:absolute;right:-46px;top:58%;border:26px solid transparent;border-left:48px solid #3d1f6b;border-right:0}
+.globo::before{content:"";position:absolute;right:-34px;top:calc(58% + 9px);border:17px solid transparent;border-left:32px solid #fff;border-right:0;z-index:1}
+.globo.pop{animation:pop .45s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
+#bats{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.bat{position:absolute;left:-80px;width:48px;animation:fly linear forwards}
+.bat svg{width:100%;height:auto;display:block;animation:flap .22s ease-in-out infinite alternate;transform-origin:center}
+@keyframes fly{to{transform:translate(calc(100vw + 160px), var(--dy))}}
+@keyframes flap{from{transform:scaleY(1)}to{transform:scaleY(.35)}}
+@media (prefers-reduced-motion:reduce){.globo.pop{animation:none}#bats{display:none}}
+</style>
+</head>
+<body>
+<svg class="escena" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Nivel de grito">
+  <defs>
+    <linearGradient id="energia" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff8a8a"/>
+      <stop offset=".3" stop-color="#ff2a2a"/>
+      <stop offset="1" stop-color="#a30000"/>
+    </linearGradient>
+    <filter id="brillo" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="difuso" x="-100%" y="-50%" width="300%" height="200%">
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+    <!-- Ventana medida sobre assets/barril.png (417x1000): 98x420 px, centro (243,517), inclinada ~0.93° -->
+    <clipPath id="ventana"><rect x="-49" y="-210" width="98" height="420" rx="10"/></clipPath>
+    <clipPath id="escenaClip"><rect width="1920" height="1080"/></clipPath>
+    <!-- Color de ánimo de los monstruos: gris y apagado si están tristes, vivo si celebran -->
+    <filter id="animo" filterUnits="userSpaceOnUse" x="-100" y="-100" width="800" height="1280" color-interpolation-filters="sRGB">
+      <feColorMatrix id="animoMatriz" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"/>
+    </filter>
+    <path id="gota" d="M0,-10 C4,-4 7,1 7,5 A7,7 0 0 1 -7,5 C-7,1 -4,-4 0,-10 Z"/>
+  </defs>
+
+  <image href="assets/fondo.jpg" width="1920" height="1080"/>
+
+  <!-- Sulley, Randall y Mike recortados del fondo: reaccionan con el cuerpo al puntaje de cada
+       grito (lágrimas, gota de sudor o fiesta). Randall va encima para que su lengua tape a Mike. -->
+  <g id="mSulley"><image href="assets/sulley.png" x="27" y="76" width="511" height="325" filter="url(#animo)"/><g class="gotas"></g></g>
+  <g id="mMike"><image href="assets/mike.png" x="58" y="696" width="479" height="345" filter="url(#animo)"/><g class="gotas"></g></g>
+  <g id="mRandall"><image href="assets/randall.png" x="0" y="408" width="540" height="393" filter="url(#animo)"/><g class="gotas"></g></g>
+  <g id="confeti"></g>
+
+  <!-- Boo recortada del fondo para que pueda moverse; su base sigue 90 px bajo el borde y no se
+       ve el corte cuando salta -->
+  <g clip-path="url(#escenaClip)">
+    <g id="booCapa"><image href="assets/boo.png" x="1290" y="630" width="630" height="540"/></g>
+  </g>
+
+  <!-- Barril animado: su transformación cambia en cada cuadro según el nivel -->
+  <g id="barril" transform="translate(862 540) rotate(-3) scale(1.04) translate(-208.5 -500)">
+    <image href="assets/barril.png" width="417" height="1000"/>
+    <g transform="translate(243 517) rotate(.93)">
+      <rect id="halo" x="-75" y="-236" width="150" height="472" rx="40" fill="#ff3030" opacity="0" filter="url(#difuso)"/>
+      <g clip-path="url(#ventana)">
+        <path id="liquido" fill="url(#energia)" opacity=".93" d=""/>
+        <g id="burbujas"></g>
+        <line id="picoLinea" x1="-60" x2="60" y1="210" y2="210" stroke="#ffffff" stroke-width="3" stroke-dasharray="8 6" opacity="0"/>
+      </g>
+    </g>
+  </g>
+  <path id="rayos" fill="none" stroke="#ffe0e0" stroke-width="3" stroke-linejoin="round" filter="url(#brillo)" d=""/>
+
+  <!-- Panel arriba a la derecha, entre el barril y el logo -->
+  <g text-anchor="middle">
+    <text id="estado" x="1410" y="215" font-family="Creepster, Impact, fantasy" font-size="88" letter-spacing="3" fill="#ffe14d" filter="url(#brillo)"></text>
+    <text id="ayuda" x="1410" y="262" font-family="IBM Plex Mono, monospace" font-size="24" fill="#a693b4"></text>
+    <text id="nivel" x="1410" y="512"font-family="Bungee, Impact, sans-serif" font-size="300" fill="#ffffff" stroke="#000" stroke-width="10" paint-order="stroke" style="font-variant-numeric:tabular-nums">0</text>
+    <text id="etiqueta" x="1410" y="566"font-family="IBM Plex Mono, monospace" font-size="30" letter-spacing="10" fill="#a693b4">NIVEL</text>
+    <text id="picoTexto" x="1410" y="620"font-family="IBM Plex Mono, monospace" font-weight="600" font-size="34" fill="#f3ece6"></text>
+  </g>
+
+  <!-- Logo: botón que lleva a la configuración -->
+  <g id="logo" role="button" tabindex="0" aria-label="Abrir la configuración">
+    <circle class="aro" cx="1811" cy="110" r="96" fill="none" stroke="#ffe14d" stroke-width="6"/>
+    <circle cx="1811" cy="110" r="90" fill="transparent"/>
+    <title>Abrir la configuración</title>
+  </g>
+
+  <!-- Boo: botón que inicia la siguiente ronda -->
+  <g id="boo" role="button" tabindex="0" aria-label="Iniciar ronda de grito" style="cursor:pointer;outline:none">
+    <path d="M1312,1080 L1312,780 Q1420,640 1600,650 Q1790,660 1900,790 L1900,1080 Z" fill="transparent"/>
+    <title>Toca a Boo para gritar</title>
+  </g>
+
+  <!-- Globo de Boo con el mensaje al terminar la ronda; puede quedar encima del barril -->
+  <foreignObject x="730" y="560" width="630" height="440" id="globoZona" visibility="hidden">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:630px;height:440px">
+      <div class="globo" id="globo"></div>
+    </div>
+  </foreignObject>
+</svg>
+<div id="bats" aria-hidden="true"></div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const canal = new BroadcastChannel('gritometro');
+  window.name = 'gritometro-pantalla'; // el botón de la configuración la busca por este nombre
+  const MEDIO = 210, ALTO = 420;
+  const levelToY = l => MEDIO - (l/100)*ALTO;
+
+  // Estado que envía la pestaña de configuración. Si hay dos configuraciones abiertas,
+  // manda la que tiene el micrófono encendido.
+  let e = null, recibido = 0, level = 0, energia = 0, t = 0, fiesta = 0, booSalto = -1e9;
+  canal.onmessage = ({data}) => {
+    if (data.t === 'estado'){
+      const now = performance.now();
+      if (!data.mic && e && e.mic && now - recibido < 1000) return;
+      e = data; recibido = now;
+    }
+    else if (data.t === 'celebrar') celebrate();
+  };
+  const ping = () => canal.postMessage({ t:'ping' });
+  ping(); setInterval(ping, 1500);
+
+  const set = (id, v) => { const el = $(id); if (el.textContent !== String(v)) el.textContent = v; };
+  // Ajusta el texto al ancho disponible para nombres o mensajes largos
+  function fit(id, max){
+    const el = $(id);
+    el.removeAttribute('textLength');
+    if (el.textContent && el.getComputedTextLength() > max){
+      el.setAttribute('textLength', max); el.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+    }
+  }
+  const setFit = (id, v, max) => { const el = $(id); if (el.textContent !== String(v)){ el.textContent = v; fit(id, max); } };
+
+  // Burbujas dentro de la ventana
+  const bubbles = [];
+  function spawnBubble(){
+    const c = document.createElementNS(NS,'circle');
+    const b = { el:c, x: -40 + Math.random()*80, y: MEDIO, r: 2 + Math.random()*4, v: .6 + Math.random()*1.2, w: Math.random()*6 };
+    c.setAttribute('r', b.r); c.setAttribute('fill','#ffd6d6'); c.setAttribute('fill-opacity','.6');
+    $('burbujas').appendChild(c); bubbles.push(b);
+  }
+
+  function drawLiquid(){
+    const y = levelToY(level);
+    const amp = 1.5 + level/30 + energia*5;
+    let d = `M-60,${MEDIO+20} L-60,${y}`;
+    for (let x=-60;x<=60;x+=6){
+      d += ` L${x},${(y + Math.sin(x/14 + t*3)*amp + Math.sin(x/6 - t*5)*amp*.4).toFixed(1)}`;
+    }
+    $('liquido').setAttribute('d', d + ` L60,${MEDIO+20} Z`);
+    $('halo').setAttribute('opacity', (level/100*.6).toFixed(3));
+
+    if (!reduced && level > 2 && Math.random() < .08 + level/90 + energia*.3) spawnBubble();
+    for (let i=bubbles.length-1;i>=0;i--){
+      const b = bubbles[i];
+      b.y -= b.v * (1 + level/25);
+      b.el.setAttribute('cx', b.x + Math.sin(t*4 + b.w)*3); b.el.setAttribute('cy', b.y);
+      if (b.y < y - 2){ b.el.remove(); bubbles.splice(i,1); }
+    }
+  }
+
+  // Movimiento del barril: baila con cualquier sonido (energia = el mayor entre el sonido y el
+  // nivel), se balancea solo en silencio y se sacude fuerte al llegar a 100
+  function moveBarrel(mic){
+    let rot = 0, tx = 0, ty = 0, sq = 0;
+    if (!reduced){
+      const fuerte = level >= 99.5 || performance.now() < fiesta;
+      if (fuerte){
+        rot = Math.sin(t*38)*9 + (Math.random()-.5)*4;
+        tx = (Math.random()-.5)*50; ty = (Math.random()-.5)*28;
+        sq = Math.sin(t*30)*.05;
+      } else {
+        const k = energia;
+        rot = Math.sin(t*9)*7*k + Math.sin(t*23)*2.5*k + (mic ? Math.sin(t*1.6)*1.2 : 0);
+        tx = Math.sin(t*6.5)*18*k + (Math.random()-.5)*10*k;
+        ty = -Math.abs(Math.sin(t*7.5))*22*k + (Math.random()-.5)*6*k;
+        sq = Math.sin(t*15)*.05*k;
+      }
+    }
+    $('barril').setAttribute('transform',
+      `translate(${(862+tx).toFixed(1)} ${(540+ty).toFixed(1)}) rotate(${(-3+rot).toFixed(2)}) scale(${(1.04*(1+sq)).toFixed(3)} ${(1.04*(1-sq)).toFixed(3)}) translate(-208.5 -500)`);
+  }
+
+  // Boo salta y se balancea al dar el mensaje (y al tocarla); mientras espera, da saltitos
+  // para invitar a tocarla. Gira y se estira desde la base, abajo al centro de la figura.
+  function moveBoo(vivo){
+    let rot = 0, ty = 0, sq = 0;
+    if (!reduced){
+      const st = (performance.now() - booSalto)/1000;
+      if (st < 1.6){
+        const dec = 1 - st/1.6, hop = Math.abs(Math.sin(st*Math.PI/.4));
+        ty = -hop*45*dec; rot = Math.sin(st*16)*6*dec; sq = (1-hop)*.08*dec;
+      } else if (globoActual){
+        rot = Math.sin(t*4)*2.5; ty = -Math.abs(Math.sin(t*8))*8;
+      } else if (vivo && e.mic && e.fase === 'espera'){
+        const c = t % 3;
+        if (c < .6) ty = -Math.abs(Math.sin(c*Math.PI/.3))*18;
+        rot = Math.sin(t*1.5);
+      } else {
+        rot = Math.sin(t*1.2)*.8;
+      }
+    }
+    $('booCapa').setAttribute('transform',
+      `translate(1600 ${(1080+ty).toFixed(1)}) rotate(${rot.toFixed(2)}) scale(${(1+sq).toFixed(3)} ${(1-sq).toFixed(3)}) translate(-1600 -1080)`);
+  }
+
+  // Sulley, Randall y Mike reaccionan al puntaje, sin texto: hasta 40 se ponen tristes (se
+  // encogen, se apagan y lloran), de 41 a 69 «puede mejorar» (se encogen de hombros y sudan)
+  // y desde 70 celebran saltando con confeti; con 100, mucho más. Cada uno gira desde la base
+  // de su recuadro; ojos y cabeza marcan de dónde salen lágrimas y gotas de sudor.
+  const MONSTRUOS = [
+    { el:$('mSulley'), ancla:[296,397], ojos:[[420,170],[460,172]], cabeza:[488,112] },
+    { el:$('mRandall'), ancla:[296,694], ojos:[[462,540],[365,606]], cabeza:[515,498] },
+    { el:$('mMike'), ancla:[297,994], ojos:[[300,842]], cabeza:[392,742] }
+  ];
+  // Saturación, brillo y tinte azul de cada ánimo
+  const ANIMO_COLOR = { calma:[1,1,0], atento:[1.1,1.03,0], triste:[.3,.7,.06], medio:[.75,.92,0], feliz:[1.3,1.08,0], loco:[1.45,1.12,0] };
+  const CONFETI = ['#ffe14d','#ff3b3b','#8cff3a','#4dd2ff','#ff7ad9','#ff7a1a'];
+  let animo = 'calma', animoDesde = 0, color = [1,1,0], colorPuesto = '';
+  const gotas = [], confeti = [];
+
+  function animoDe(vivo){
+    if (!vivo || !e.mic) return 'calma';
+    if (e.fase === 'cuenta' || e.fase === 'grita') return 'atento';
+    if (e.fase !== 'resultado') return 'calma';
+    return e.pico >= 100 ? 'loco' : e.pico >= 70 ? 'feliz' : e.pico > 40 ? 'medio' : 'triste';
+  }
+
+  function pintarAnimo(){
+    const meta = ANIMO_COLOR[animo];
+    color = color.map((v,i) => v + (meta[i] - v)*.06);
+    const [s, b, azul] = color;
+    const m = [.213+.787*s, .715-.715*s, .072-.072*s,
+               .213-.213*s, .715+.285*s, .072-.072*s,
+               .213-.213*s, .715-.715*s, .072+.928*s].map(v => (v*b).toFixed(3));
+    const valores = `${m[0]} ${m[1]} ${m[2]} 0 0 ${m[3]} ${m[4]} ${m[5]} 0 0 ${m[6]} ${m[7]} ${m[8]} 0 ${azul.toFixed(3)} 0 0 0 1 0`;
+    if (valores !== colorPuesto){ colorPuesto = valores; $('animoMatriz').setAttribute('values', valores); }
+  }
+
+  function soltarGota(m, x, y, sudor){
+    const g = document.createElementNS(NS, 'use');
+    g.setAttribute('href', '#gota');
+    g.setAttribute('fill', sudor ? '#c8eeff' : '#5cc8ff');
+    g.setAttribute('stroke', '#ffffff'); g.setAttribute('stroke-width', '1.5'); g.setAttribute('stroke-opacity', '.7');
+    m.el.querySelector('.gotas').appendChild(g);
+    gotas.push({ el:g, x, y, vy: sudor ? .3 : 1, vida:0, sudor });
+  }
+  function moverGotas(){
+    for (let i=gotas.length-1;i>=0;i--){
+      const g = gotas[i], fin = g.sudor ? 80 : 60;
+      g.vida++; g.vy += g.sudor ? .02 : .08; g.y += g.vy;
+      g.el.setAttribute('transform', `translate(${g.x} ${g.y.toFixed(1)}) scale(${g.sudor ? 1.6 : 1.1})`);
+      g.el.setAttribute('opacity', (Math.min(1, g.vida/8) * (1 - g.vida/fin)).toFixed(2));
+      if (g.vida >= fin){ g.el.remove(); gotas.splice(i,1); }
+    }
+  }
+
+  function soltarConfeti(){
+    const r = document.createElementNS(NS, 'rect');
+    r.setAttribute('x', -8); r.setAttribute('y', -5);
+    r.setAttribute('width', 10 + Math.random()*8); r.setAttribute('height', 6 + Math.random()*5);
+    r.setAttribute('fill', CONFETI[Math.floor(Math.random()*CONFETI.length)]);
+    $('confeti').appendChild(r);
+    const m = MONSTRUOS[Math.floor(Math.random()*3)];
+    confeti.push({ el:r, x: m.cabeza[0] - Math.random()*400, y: m.cabeza[1] - 20,
+      vx: (Math.random()-.5)*8, vy: -6 - Math.random()*7, a: Math.random()*360, va: (Math.random()-.5)*20, vida:0 });
+  }
+  function moverConfeti(){
+    for (let i=confeti.length-1;i>=0;i--){
+      const c = confeti[i];
+      c.vida++; c.vy += .25; c.vx *= .99; c.x += c.vx; c.y += c.vy; c.a += c.va;
+      c.el.setAttribute('transform', `translate(${c.x.toFixed(1)} ${c.y.toFixed(1)}) rotate(${c.a.toFixed(0)})`);
+      if (c.y > 1100 || c.vida > 240){ c.el.remove(); confeti.splice(i,1); }
+    }
+  }
+
+  function moveMonstruos(vivo){
+    const nuevo = animoDe(vivo);
+    if (nuevo !== animo){ animo = nuevo; animoDesde = performance.now(); }
+    pintarAnimo();
+    if (reduced) return;
+    const entra = Math.min(1, (performance.now() - animoDesde)/800); // pasa al nuevo ánimo en 0.8 s
+    const fiestaM = animo === 'feliz' || animo === 'loco', loco = animo === 'loco';
+    MONSTRUOS.forEach((m, i) => {
+      const f = i*1.1;
+      let rot = Math.sin(t*1.1+f)*.8, tx = 0, ty = Math.sin(t*1.6+f)*3, sx = 1, sy = 1;
+      if (animo === 'atento'){ // miran el grito y tiemblan con el sonido
+        rot += Math.sin(t*18+f)*2.5*energia; ty -= Math.abs(Math.sin(t*7+f))*14*energia;
+      } else if (animo === 'triste'){ // se hunden, agachan la cabeza y lloran
+        rot = 5*entra + Math.sin(t*.9+f)*1.2; ty = 26*entra + Math.sin(t*1.3+f)*3;
+        sx = 1 + .02*entra; sy = 1 - .06*entra;
+        m.ojos.forEach(o => { if (Math.random() < .025) soltarGota(m, o[0], o[1], false); });
+      } else if (animo === 'medio'){ // «más o menos»: se mecen de lado a lado, encogen hombros y sudan
+        rot = Math.sin(t*3.2+f)*4*entra; ty = -Math.abs(Math.sin(t*2+f))*12*entra;
+        if (Math.random() < .012) soltarGota(m, m.cabeza[0], m.cabeza[1], true);
+      } else if (fiestaM){ // saltan por turnos; con 100 saltan más alto, giran más y se sacuden
+        const w = loco ? 8.5 : 6, hop = Math.abs(Math.sin(t*w+f));
+        ty = -hop*(loco ? 65 : 40)*entra;
+        rot = Math.sin(t*w+f)*(loco ? 10 : 6)*entra + (loco ? (Math.random()-.5)*2 : 0);
+        tx = loco ? Math.sin(t*4.2+f)*14*entra : 0;
+        const sq = (1-hop)*(loco ? .1 : .07)*entra; sx = 1 + sq; sy = 1 - sq;
+      }
+      const [ax, ay] = m.ancla;
+      m.el.setAttribute('transform',
+        `translate(${(ax+tx).toFixed(1)} ${(ay+ty).toFixed(1)}) rotate(${rot.toFixed(2)}) scale(${sx.toFixed(3)} ${sy.toFixed(3)}) translate(${-ax} ${-ay})`);
+    });
+    if (fiestaM && confeti.length < 140 && Math.random() < (loco ? .9 : .35)) soltarConfeti();
+    moverGotas(); moverConfeti();
+  }
+
+  // Rayos alrededor del barril cuando el grito es fuerte
+  function bolt(x1,y1,x2,y2,spread){
+    let d = `M${x1.toFixed(0)},${y1.toFixed(0)}`;
+    for (let i=1;i<9;i++){
+      const k=i/9;
+      d += ` L${(x1+(x2-x1)*k+(Math.random()-.5)*spread).toFixed(0)},${(y1+(y2-y1)*k+(Math.random()-.5)*spread).toFixed(0)}`;
+    }
+    return d + ` L${x2.toFixed(0)},${y2.toFixed(0)}`;
+  }
+  function drawSparks(){
+    if (reduced || level < 55){ $('rayos').setAttribute('d', ''); return; }
+    const n = level >= 98 ? 6 : Math.floor((level-55)/12)+1;
+    let d = '';
+    for (let i=0;i<n;i++){
+      if (Math.random() < .55) continue;
+      const ang = Math.random()*Math.PI*2, rad = 260 + Math.random()*140;
+      const sx = 862 + (Math.random()-.5)*80, sy = 540 + (Math.random()-.5)*380;
+      d += bolt(sx, sy, 862 + Math.cos(ang)*rad*.8, 540 + Math.sin(ang)*rad*1.3, 40) + ' ';
+    }
+    $('rayos').setAttribute('d', d);
+  }
+
+  let globoActual = '';
+  function drawGlobo(vivo){
+    const msg = vivo && e.fase === 'resultado' ? (e.mensaje || '') : '';
+    if (msg === globoActual) return;
+    globoActual = msg;
+    const g = $('globo');
+    g.textContent = msg;
+    $('globoZona').setAttribute('visibility', msg ? 'visible' : 'hidden');
+    if (msg){ g.classList.remove('pop'); void g.offsetWidth; g.classList.add('pop'); booSalto = performance.now(); }
+  }
+
+  function drawPanel(vivo){
+    if (!vivo){
+      setFit('estado', 'Esperando…', 580);
+      setFit('ayuda', 'Toca el logo M para abrir los ajustes', 580);
+    } else if (!e.mic){
+      setFit('estado', 'Micrófono apagado', 580); setFit('ayuda', 'Toca el logo M y enciéndelo', 580);
+    } else if (e.fase === 'espera'){
+      setFit('estado', '¿Quién se atreve?', 580); setFit('ayuda', 'Toca a Boo para empezar a gritar', 580);
+    } else if (e.fase === 'resultado'){
+      setFit('estado', e.texto, 580); setFit('ayuda', 'Toca a Boo para volver a gritar', 580);
+    } else {
+      setFit('estado', e.texto, 580); set('ayuda', '');
+    }
+    const resultado = vivo && e.fase === 'resultado';
+    const n = resultado ? e.pico : Math.round(level);
+    set('nivel', n);
+    $('nivel').setAttribute('fill', n >= 70 ? '#ff3b3b' : n >= 40 ? '#ffe14d' : '#ffffff');
+    set('etiqueta', resultado ? 'PUNTAJE' : 'NIVEL');
+    const enRonda = vivo && (e.fase === 'grita' || resultado);
+    set('picoTexto', enRonda ? `Pico de la ronda: ${e.pico}` : '');
+    const py = levelToY(enRonda ? e.pico : 0);
+    $('picoLinea').setAttribute('y1', py); $('picoLinea').setAttribute('y2', py);
+    $('picoLinea').setAttribute('opacity', enRonda && e.pico > 0 ? '.85' : '0');
+  }
+
+  function loop(){
+    t += 1/60;
+    const vivo = !!e && performance.now() - recibido < 4000;
+    const mic = vivo && e.mic;
+    const target = mic ? e.nivel : 0;
+    level += (target - level) * .5;
+    const objetivo = mic ? Math.max(e.sonido || 0, e.nivel/100) : 0;
+    energia += (objetivo - energia) * (objetivo > energia ? .35 : .08);
+    drawLiquid(); moveBarrel(mic); drawSparks(); drawPanel(vivo); drawGlobo(vivo); moveBoo(vivo); moveMonstruos(vivo);
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  // Celebración al llegar a 100
+  const BAT = '<svg viewBox="0 0 48 22"><path fill="#07040b" d="M0,10 C6,2 12,4 16,10 C18,6 20,6 22,4 L24,8 L26,4 C28,6 30,6 32,10 C36,4 42,2 48,10 C42,10 38,14 36,18 C32,14 28,16 24,20 C20,16 16,14 12,18 C10,14 6,10 0,10 Z"/></svg>';
+  function releaseBat(){
+    if (reduced) return;
+    const b = document.createElement('div');
+    b.className = 'bat'; b.innerHTML = BAT;
+    b.style.width = (40 + Math.random()*50) + 'px';
+    b.style.top = (20 + Math.random()*60) + 'vh';
+    b.style.setProperty('--dy', ((Math.random()-.5)*30) + 'vh');
+    const dur = 2 + Math.random()*1.5;
+    b.style.animationDuration = dur + 's';
+    b.firstChild.style.animationDuration = (.15 + Math.random()*.15) + 's';
+    $('bats').appendChild(b);
+    setTimeout(()=>b.remove(), dur*1000 + 200);
+  }
+  function celebrate(){
+    fiesta = performance.now() + 1800;
+    for (let i=0;i<14;i++) setTimeout(releaseBat, i*90);
+  }
+
+  // Logo → configuración. Si la configuración ya está abierta desde aquí, solo la enfoca
+  // (recargarla apagaría el micrófono); si no, la abre en otra pestaña.
+  function openConfig(){
+    const w = window.open('', 'gritometro-config');
+    if (!w) return;
+    let blank = true;
+    try { blank = w.location.href === 'about:blank'; } catch(err) { blank = false; }
+    if (blank) w.location.href = new URL('./', location.href).href; else w.focus();
+  }
+  $('logo').addEventListener('click', ev => { ev.stopPropagation(); openConfig(); });
+  $('logo').addEventListener('dblclick', ev => ev.stopPropagation());
+  $('logo').addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); openConfig(); } });
+
+  // Boo (o la barra espaciadora) inicia la siguiente ronda; la configuración decide si se puede
+  const iniciar = () => { canal.postMessage({ t:'iniciar' }); booSalto = performance.now(); };
+  $('boo').addEventListener('click', ev => { ev.stopPropagation(); iniciar(); });
+  $('boo').addEventListener('dblclick', ev => ev.stopPropagation());
+  $('boo').addEventListener('keydown', ev => { if (ev.key === 'Enter'){ ev.preventDefault(); iniciar(); } });
+
+  // Pantalla completa con doble clic o tecla F; el cursor se oculta si no se mueve
+  const toggleFs = () => { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(()=>{}); };
+  addEventListener('dblclick', toggleFs);
+  addEventListener('keydown', ev => {
+    if (ev.key === ' '){ ev.preventDefault(); iniciar(); }
+    else if ((ev.key === 'f' || ev.key === 'F') && ev.target === document.body) toggleFs();
+  });
+  let idleTimer;
+  addEventListener('mousemove', () => {
+    document.body.classList.remove('idle');
+    clearTimeout(idleTimer); idleTimer = setTimeout(() => document.body.classList.add('idle'), 2500);
+  });
+})();
+</script>
+</body>
+</html>
