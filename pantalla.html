@@ -51,9 +51,21 @@ svg.escena{display:block;width:100vw;height:100vh}
     <!-- Ventana medida sobre assets/barril.png (417x1000): 98x420 px, centro (243,517), inclinada ~0.93° -->
     <clipPath id="ventana"><rect x="-49" y="-210" width="98" height="420" rx="10"/></clipPath>
     <clipPath id="escenaClip"><rect width="1920" height="1080"/></clipPath>
+    <!-- Color de ánimo de los monstruos: gris y apagado si están tristes, vivo si celebran -->
+    <filter id="animo" filterUnits="userSpaceOnUse" x="-100" y="-100" width="800" height="1280" color-interpolation-filters="sRGB">
+      <feColorMatrix id="animoMatriz" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"/>
+    </filter>
+    <path id="gota" d="M0,-10 C4,-4 7,1 7,5 A7,7 0 0 1 -7,5 C-7,1 -4,-4 0,-10 Z"/>
   </defs>
 
   <image href="assets/fondo.jpg" width="1920" height="1080"/>
+
+  <!-- Sulley, Randall y Mike recortados del fondo: reaccionan con el cuerpo al puntaje de cada
+       grito (lágrimas, gota de sudor o fiesta). Randall va encima para que su lengua tape a Mike. -->
+  <g id="mSulley"><image href="assets/sulley.png" x="27" y="76" width="511" height="325" filter="url(#animo)"/><g class="gotas"></g></g>
+  <g id="mMike"><image href="assets/mike.png" x="58" y="696" width="479" height="345" filter="url(#animo)"/><g class="gotas"></g></g>
+  <g id="mRandall"><image href="assets/randall.png" x="0" y="408" width="540" height="393" filter="url(#animo)"/><g class="gotas"></g></g>
+  <g id="confeti"></g>
 
   <!-- Boo recortada del fondo para que pueda moverse; su base sigue 90 px bajo el borde y no se
        ve el corte cuando salta -->
@@ -214,6 +226,110 @@ svg.escena{display:block;width:100vw;height:100vh}
       `translate(1600 ${(1080+ty).toFixed(1)}) rotate(${rot.toFixed(2)}) scale(${(1+sq).toFixed(3)} ${(1-sq).toFixed(3)}) translate(-1600 -1080)`);
   }
 
+  // Sulley, Randall y Mike reaccionan al puntaje, sin texto: hasta 40 se ponen tristes (se
+  // encogen, se apagan y lloran), de 41 a 69 «puede mejorar» (se encogen de hombros y sudan)
+  // y desde 70 celebran saltando con confeti; con 100, mucho más. Cada uno gira desde la base
+  // de su recuadro; ojos y cabeza marcan de dónde salen lágrimas y gotas de sudor.
+  const MONSTRUOS = [
+    { el:$('mSulley'), ancla:[296,397], ojos:[[420,170],[460,172]], cabeza:[488,112] },
+    { el:$('mRandall'), ancla:[296,694], ojos:[[462,540],[365,606]], cabeza:[515,498] },
+    { el:$('mMike'), ancla:[297,994], ojos:[[300,842]], cabeza:[392,742] }
+  ];
+  // Saturación, brillo y tinte azul de cada ánimo
+  const ANIMO_COLOR = { calma:[1,1,0], atento:[1.1,1.03,0], triste:[.3,.7,.06], medio:[.75,.92,0], feliz:[1.3,1.08,0], loco:[1.45,1.12,0] };
+  const CONFETI = ['#ffe14d','#ff3b3b','#8cff3a','#4dd2ff','#ff7ad9','#ff7a1a'];
+  let animo = 'calma', animoDesde = 0, color = [1,1,0], colorPuesto = '';
+  const gotas = [], confeti = [];
+
+  function animoDe(vivo){
+    if (!vivo || !e.mic) return 'calma';
+    if (e.fase === 'cuenta' || e.fase === 'grita') return 'atento';
+    if (e.fase !== 'resultado') return 'calma';
+    return e.pico >= 100 ? 'loco' : e.pico >= 70 ? 'feliz' : e.pico > 40 ? 'medio' : 'triste';
+  }
+
+  function pintarAnimo(){
+    const meta = ANIMO_COLOR[animo];
+    color = color.map((v,i) => v + (meta[i] - v)*.06);
+    const [s, b, azul] = color;
+    const m = [.213+.787*s, .715-.715*s, .072-.072*s,
+               .213-.213*s, .715+.285*s, .072-.072*s,
+               .213-.213*s, .715-.715*s, .072+.928*s].map(v => (v*b).toFixed(3));
+    const valores = `${m[0]} ${m[1]} ${m[2]} 0 0 ${m[3]} ${m[4]} ${m[5]} 0 0 ${m[6]} ${m[7]} ${m[8]} 0 ${azul.toFixed(3)} 0 0 0 1 0`;
+    if (valores !== colorPuesto){ colorPuesto = valores; $('animoMatriz').setAttribute('values', valores); }
+  }
+
+  function soltarGota(m, x, y, sudor){
+    const g = document.createElementNS(NS, 'use');
+    g.setAttribute('href', '#gota');
+    g.setAttribute('fill', sudor ? '#c8eeff' : '#5cc8ff');
+    g.setAttribute('stroke', '#ffffff'); g.setAttribute('stroke-width', '1.5'); g.setAttribute('stroke-opacity', '.7');
+    m.el.querySelector('.gotas').appendChild(g);
+    gotas.push({ el:g, x, y, vy: sudor ? .3 : 1, vida:0, sudor });
+  }
+  function moverGotas(){
+    for (let i=gotas.length-1;i>=0;i--){
+      const g = gotas[i], fin = g.sudor ? 80 : 60;
+      g.vida++; g.vy += g.sudor ? .02 : .08; g.y += g.vy;
+      g.el.setAttribute('transform', `translate(${g.x} ${g.y.toFixed(1)}) scale(${g.sudor ? 1.6 : 1.1})`);
+      g.el.setAttribute('opacity', (Math.min(1, g.vida/8) * (1 - g.vida/fin)).toFixed(2));
+      if (g.vida >= fin){ g.el.remove(); gotas.splice(i,1); }
+    }
+  }
+
+  function soltarConfeti(){
+    const r = document.createElementNS(NS, 'rect');
+    r.setAttribute('x', -8); r.setAttribute('y', -5);
+    r.setAttribute('width', 10 + Math.random()*8); r.setAttribute('height', 6 + Math.random()*5);
+    r.setAttribute('fill', CONFETI[Math.floor(Math.random()*CONFETI.length)]);
+    $('confeti').appendChild(r);
+    const m = MONSTRUOS[Math.floor(Math.random()*3)];
+    confeti.push({ el:r, x: m.cabeza[0] - Math.random()*400, y: m.cabeza[1] - 20,
+      vx: (Math.random()-.5)*8, vy: -6 - Math.random()*7, a: Math.random()*360, va: (Math.random()-.5)*20, vida:0 });
+  }
+  function moverConfeti(){
+    for (let i=confeti.length-1;i>=0;i--){
+      const c = confeti[i];
+      c.vida++; c.vy += .25; c.vx *= .99; c.x += c.vx; c.y += c.vy; c.a += c.va;
+      c.el.setAttribute('transform', `translate(${c.x.toFixed(1)} ${c.y.toFixed(1)}) rotate(${c.a.toFixed(0)})`);
+      if (c.y > 1100 || c.vida > 240){ c.el.remove(); confeti.splice(i,1); }
+    }
+  }
+
+  function moveMonstruos(vivo){
+    const nuevo = animoDe(vivo);
+    if (nuevo !== animo){ animo = nuevo; animoDesde = performance.now(); }
+    pintarAnimo();
+    if (reduced) return;
+    const entra = Math.min(1, (performance.now() - animoDesde)/800); // pasa al nuevo ánimo en 0.8 s
+    const fiestaM = animo === 'feliz' || animo === 'loco', loco = animo === 'loco';
+    MONSTRUOS.forEach((m, i) => {
+      const f = i*1.1;
+      let rot = Math.sin(t*1.1+f)*.8, tx = 0, ty = Math.sin(t*1.6+f)*3, sx = 1, sy = 1;
+      if (animo === 'atento'){ // miran el grito y tiemblan con el sonido
+        rot += Math.sin(t*18+f)*2.5*energia; ty -= Math.abs(Math.sin(t*7+f))*14*energia;
+      } else if (animo === 'triste'){ // se hunden, agachan la cabeza y lloran
+        rot = 5*entra + Math.sin(t*.9+f)*1.2; ty = 26*entra + Math.sin(t*1.3+f)*3;
+        sx = 1 + .02*entra; sy = 1 - .06*entra;
+        m.ojos.forEach(o => { if (Math.random() < .025) soltarGota(m, o[0], o[1], false); });
+      } else if (animo === 'medio'){ // «más o menos»: se mecen de lado a lado, encogen hombros y sudan
+        rot = Math.sin(t*3.2+f)*4*entra; ty = -Math.abs(Math.sin(t*2+f))*12*entra;
+        if (Math.random() < .012) soltarGota(m, m.cabeza[0], m.cabeza[1], true);
+      } else if (fiestaM){ // saltan por turnos; con 100 saltan más alto, giran más y se sacuden
+        const w = loco ? 8.5 : 6, hop = Math.abs(Math.sin(t*w+f));
+        ty = -hop*(loco ? 65 : 40)*entra;
+        rot = Math.sin(t*w+f)*(loco ? 10 : 6)*entra + (loco ? (Math.random()-.5)*2 : 0);
+        tx = loco ? Math.sin(t*4.2+f)*14*entra : 0;
+        const sq = (1-hop)*(loco ? .1 : .07)*entra; sx = 1 + sq; sy = 1 - sq;
+      }
+      const [ax, ay] = m.ancla;
+      m.el.setAttribute('transform',
+        `translate(${(ax+tx).toFixed(1)} ${(ay+ty).toFixed(1)}) rotate(${rot.toFixed(2)}) scale(${sx.toFixed(3)} ${sy.toFixed(3)}) translate(${-ax} ${-ay})`);
+    });
+    if (fiestaM && confeti.length < 140 && Math.random() < (loco ? .9 : .35)) soltarConfeti();
+    moverGotas(); moverConfeti();
+  }
+
   // Rayos alrededor del barril cuando el grito es fuerte
   function bolt(x1,y1,x2,y2,spread){
     let d = `M${x1.toFixed(0)},${y1.toFixed(0)}`;
@@ -256,7 +372,7 @@ svg.escena{display:block;width:100vw;height:100vh}
     } else if (e.fase === 'espera'){
       setFit('estado', '¿Quién se atreve?', 580); setFit('ayuda', 'Toca a Boo para empezar a gritar', 580);
     } else if (e.fase === 'resultado'){
-      setFit('estado', e.texto, 580); setFit('ayuda', 'Toca a Boo para volver a escuchar', 580);
+      setFit('estado', e.texto, 580); setFit('ayuda', 'Toca a Boo para volver a gritar', 580);
     } else {
       setFit('estado', e.texto, 580); set('ayuda', '');
     }
@@ -280,7 +396,7 @@ svg.escena{display:block;width:100vw;height:100vh}
     level += (target - level) * .5;
     const objetivo = mic ? Math.max(e.sonido || 0, e.nivel/100) : 0;
     energia += (objetivo - energia) * (objetivo > energia ? .35 : .08);
-    drawLiquid(); moveBarrel(mic); drawSparks(); drawPanel(vivo); drawGlobo(vivo); moveBoo(vivo);
+    drawLiquid(); moveBarrel(mic); drawSparks(); drawPanel(vivo); drawGlobo(vivo); moveBoo(vivo); moveMonstruos(vivo);
     requestAnimationFrame(loop);
   }
   loop();

@@ -11,8 +11,10 @@ Se usa en dos pestañas del mismo navegador, que se comunican con `BroadcastChan
   (`medidor.js`, en el hilo de audio), así que sigue funcionando aunque quede en segundo plano.
 - `pantalla.html` (`/pantalla` en Vercel) — pantalla para el público: el barril baila con
   cualquier sonido y se llena con el nivel del grito; arriba a la derecha van la cuenta
-  regresiva y el puntaje. Tocar a Boo inicia cada ronda y ella responde con un mensaje; el logo
-  de Monsters, Inc. vuelve a los ajustes. Doble clic o tecla F: pantalla completa.
+  regresiva y el puntaje. Tocar a Boo inicia cada ronda y ella responde con un mensaje; Sulley,
+  Randall y Mike reaccionan al puntaje (hasta 40 tristes, de 41 a 69 «puede mejorar», desde 70
+  celebran). El logo de Monsters, Inc. vuelve a los ajustes. Doble clic o tecla F: pantalla
+  completa.
 
 `/configuracion` (dirección anterior de los ajustes) redirige a `/`.
 
