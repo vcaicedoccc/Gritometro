@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gritómetro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Creepster&family=Bungee&family=IBM+Plex+Mono:wght@400;600&family=Rubik:wght@600;800&display=swap">
+<style>
+/* Pantalla principal para el público: fondo 1920x1080 y barril animado encima; la barra roja
+   llena la ventana del barril, el nivel va arriba a la derecha y Boo da el mensaje final.
+   Todo se controla desde la configuración (index.html) en otra pestaña. */
+:root{color-scheme:dark}
+html,body{height:100%;margin:0;background:#000;overflow:hidden}
+body.idle{cursor:none}
+svg.escena{display:block;width:100vw;height:100vh}
+#logo{cursor:pointer;outline:none}
+#logo .aro{opacity:0;transition:opacity .2s}
+#logo:hover .aro,#logo:focus-visible .aro{opacity:1}
+.globo{box-sizing:border-box;position:absolute;left:20px;right:50px;bottom:24px;padding:26px 32px;background:#fff;color:#2a1640;
+  border:6px solid #3d1f6b;border-radius:40px;font:800 40px/1.2 Rubik, system-ui, sans-serif;text-align:center;
+  box-shadow:0 10px 0 rgba(0,0,0,.35);transform-origin:100% 70%}
+.globo::after{content:"";position:absolute;right:-46px;top:58%;border:26px solid transparent;border-left:48px solid #3d1f6b;border-right:0}
+.globo::before{content:"";position:absolute;right:-34px;top:calc(58% + 9px);border:17px solid transparent;border-left:32px solid #fff;border-right:0;z-index:1}
+.globo.pop{animation:pop .45s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
+#bats{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.bat{position:absolute;left:-80px;width:48px;animation:fly linear forwards}
+.bat svg{width:100%;height:auto;display:block;animation:flap .22s ease-in-out infinite alternate;transform-origin:center}
+@keyframes fly{to{transform:translate(calc(100vw + 160px), var(--dy))}}
+@keyframes flap{from{transform:scaleY(1)}to{transform:scaleY(.35)}}
+@media (prefers-reduced-motion:reduce){.globo.pop{animation:none}#bats{display:none}}
+</style>
+</head>
+<body>
+<svg class="escena" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Nivel de grito">
+  <defs>
+    <linearGradient id="energia" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff8a8a"/>
+      <stop offset=".3" stop-color="#ff2a2a"/>
+      <stop offset="1" stop-color="#a30000"/>
+    </linearGradient>
+    <filter id="brillo" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="difuso" x="-100%" y="-50%" width="300%" height="200%">
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+    <!-- Ventana medida sobre assets/barril.png (417x1000): 98x420 px, centro (243,517), inclinada ~0.93° -->
+    <clipPath id="ventana"><rect x="-49" y="-210" width="98" height="420" rx="10"/></clipPath>
+    <clipPath id="escenaClip"><rect width="1920" height="1080"/></clipPath>
+  </defs>
+
+  <image href="assets/fondo.jpg" width="1920" height="1080"/>
+
+  <!-- Boo recortada del fondo para que pueda moverse; su base sigue 90 px bajo el borde y no se
+       ve el corte cuando salta -->
+  <g clip-path="url(#escenaClip)">
+    <g id="booCapa"><image href="assets/boo.png" x="1290" y="630" width="630" height="540"/></g>
+  </g>
+
+  <!-- Barril animado: su transformación cambia en cada cuadro según el nivel -->
+  <g id="barril" transform="translate(862 540) rotate(-3) scale(1.04) translate(-208.5 -500)">
+    <image href="assets/barril.png" width="417" height="1000"/>
+    <g transform="translate(243 517) rotate(.93)">
+      <rect id="halo" x="-75" y="-236" width="150" height="472" rx="40" fill="#ff3030" opacity="0" filter="url(#difuso)"/>
+      <g clip-path="url(#ventana)">
+        <path id="liquido" fill="url(#energia)" opacity=".93" d=""/>
+        <g id="burbujas"></g>
+        <line id="picoLinea" x1="-60" x2="60" y1="210" y2="210" stroke="#ffffff" stroke-width="3" stroke-dasharray="8 6" opacity="0"/>
+      </g>
+    </g>
+  </g>
+  <path id="rayos" fill="none" stroke="#ffe0e0" stroke-width="3" stroke-linejoin="round" filter="url(#brillo)" d=""/>
+
+  <!-- Panel arriba a la derecha, entre el barril y el logo -->
+  <g text-anchor="middle">
+    <text id="estado" x="1410" y="215" font-family="Creepster, Impact, fantasy" font-size="88" letter-spacing="3" fill="#ffe14d" filter="url(#brillo)"></text>
+    <text id="ayuda" x="1410" y="262" font-family="IBM Plex Mono, monospace" font-size="24" fill="#a693b4"></text>
+    <text id="nivel" x="1410" y="512"font-family="Bungee, Impact, sans-serif" font-size="300" fill="#ffffff" stroke="#000" stroke-width="10" paint-order="stroke" style="font-variant-numeric:tabular-nums">0</text>
+    <text id="etiqueta" x="1410" y="566"font-family="IBM Plex Mono, monospace" font-size="30" letter-spacing="10" fill="#a693b4">NIVEL</text>
+    <text id="picoTexto" x="1410" y="620"font-family="IBM Plex Mono, monospace" font-weight="600" font-size="34" fill="#f3ece6"></text>
+  </g>
+
+  <!-- Logo: botón que lleva a la configuración -->
+  <g id="logo" role="button" tabindex="0" aria-label="Abrir la configuración">
+    <circle class="aro" cx="1811" cy="110" r="96" fill="none" stroke="#ffe14d" stroke-width="6"/>
+    <circle cx="1811" cy="110" r="90" fill="transparent"/>
+    <title>Abrir la configuración</title>
+  </g>
+
+  <!-- Boo: botón que inicia la siguiente ronda -->
+  <g id="boo" role="button" tabindex="0" aria-label="Iniciar ronda de grito" style="cursor:pointer;outline:none">
+    <path d="M1312,1080 L1312,780 Q1420,640 1600,650 Q1790,660 1900,790 L1900,1080 Z" fill="transparent"/>
+    <title>Toca a Boo para gritar</title>
+  </g>
+
+  <!-- Globo de Boo con el mensaje al terminar la ronda; puede quedar encima del barril -->
+  <foreignObject x="730" y="560" width="630" height="440" id="globoZona" visibility="hidden">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:630px;height:440px">
+      <div class="globo" id="globo"></div>
+    </div>
+  </foreignObject>
+</svg>
+<div id="bats" aria-hidden="true"></div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const canal = new BroadcastChannel('gritometro');
+  window.name = 'gritometro-pantalla'; // el botón de la configuración la busca por este nombre
+  const MEDIO = 210, ALTO = 420;
+  const levelToY = l => MEDIO - (l/100)*ALTO;
+
+  // Estado que envía la pestaña de configuración. Si hay dos configuraciones abiertas,
+  // manda la que tiene el micrófono encendido.
+  let e = null, recibido = 0, level = 0, energia = 0, t = 0, fiesta = 0, booSalto = -1e9;
+  canal.onmessage = ({data}) => {
+    if (data.t === 'estado'){
+      const now = performance.now();
+      if (!data.mic && e && e.mic && now - recibido < 1000) return;
+      e = data; recibido = now;
+    }
+    else if (data.t === 'celebrar') celebrate();
+  };
+  const ping = () => canal.postMessage({ t:'ping' });
+  ping(); setInterval(ping, 1500);
+
+  const set = (id, v) => { const el = $(id); if (el.textContent !== String(v)) el.textContent = v; };
+  // Ajusta el texto al ancho disponible para nombres o mensajes largos
+  function fit(id, max){
+    const el = $(id);
+    el.removeAttribute('textLength');
+    if (el.textContent && el.getComputedTextLength() > max){
+      el.setAttribute('textLength', max); el.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+    }
+  }
+  const setFit = (id, v, max) => { const el = $(id); if (el.textContent !== String(v)){ el.textContent = v; fit(id, max); } };
+
+  // Burbujas dentro de la ventana
+  const bubbles = [];
+  function spawnBubble(){
+    const c = document.createElementNS(NS,'circle');
+    const b = { el:c, x: -40 + Math.random()*80, y: MEDIO, r: 2 + Math.random()*4, v: .6 + Math.random()*1.2, w: Math.random()*6 };
+    c.setAttribute('r', b.r); c.setAttribute('fill','#ffd6d6'); c.setAttribute('fill-opacity','.6');
+    $('burbujas').appendChild(c); bubbles.push(b);
+  }
+
+  function drawLiquid(){
+    const y = levelToY(level);
+    const amp = 1.5 + level/30 + energia*5;
+    let d = `M-60,${MEDIO+20} L-60,${y}`;
+    for (let x=-60;x<=60;x+=6){
+      d += ` L${x},${(y + Math.sin(x/14 + t*3)*amp + Math.sin(x/6 - t*5)*amp*.4).toFixed(1)}`;
+    }
+    $('liquido').setAttribute('d', d + ` L60,${MEDIO+20} Z`);
+    $('halo').setAttribute('opacity', (level/100*.6).toFixed(3));
+
+    if (!reduced && level > 2 && Math.random() < .08 + level/90 + energia*.3) spawnBubble();
+    for (let i=bubbles.length-1;i>=0;i--){
+      const b = bubbles[i];
+      b.y -= b.v * (1 + level/25);
+      b.el.setAttribute('cx', b.x + Math.sin(t*4 + b.w)*3); b.el.setAttribute('cy', b.y);
+      if (b.y < y - 2){ b.el.remove(); bubbles.splice(i,1); }
+    }
+  }
+
+  // Movimiento del barril: baila con cualquier sonido (energia = el mayor entre el sonido y el
+  // nivel), se balancea solo en silencio y se sacude fuerte al llegar a 100
+  function moveBarrel(mic){
+    let rot = 0, tx = 0, ty = 0, sq = 0;
+    if (!reduced){
+      const fuerte = level >= 99.5 || performance.now() < fiesta;
+      if (fuerte){
+        rot = Math.sin(t*38)*9 + (Math.random()-.5)*4;
+        tx = (Math.random()-.5)*50; ty = (Math.random()-.5)*28;
+        sq = Math.sin(t*30)*.05;
+      } else {
+        const k = energia;
+        rot = Math.sin(t*9)*7*k + Math.sin(t*23)*2.5*k + (mic ? Math.sin(t*1.6)*1.2 : 0);
+        tx = Math.sin(t*6.5)*18*k + (Math.random()-.5)*10*k;
+        ty = -Math.abs(Math.sin(t*7.5))*22*k + (Math.random()-.5)*6*k;
+        sq = Math.sin(t*15)*.05*k;
+      }
+    }
+    $('barril').setAttribute('transform',
+      `translate(${(862+tx).toFixed(1)} ${(540+ty).toFixed(1)}) rotate(${(-3+rot).toFixed(2)}) scale(${(1.04*(1+sq)).toFixed(3)} ${(1.04*(1-sq)).toFixed(3)}) translate(-208.5 -500)`);
+  }
+
+  // Boo salta y se balancea al dar el mensaje (y al tocarla); mientras espera, da saltitos
+  // para invitar a tocarla. Gira y se estira desde la base, abajo al centro de la figura.
+  function moveBoo(vivo){
+    let rot = 0, ty = 0, sq = 0;
+    if (!reduced){
+      const st = (performance.now() - booSalto)/1000;
+      if (st < 1.6){
+        const dec = 1 - st/1.6, hop = Math.abs(Math.sin(st*Math.PI/.4));
+        ty = -hop*45*dec; rot = Math.sin(st*16)*6*dec; sq = (1-hop)*.08*dec;
+      } else if (globoActual){
+        rot = Math.sin(t*4)*2.5; ty = -Math.abs(Math.sin(t*8))*8;
+      } else if (vivo && e.mic && e.fase === 'espera'){
+        const c = t % 3;
+        if (c < .6) ty = -Math.abs(Math.sin(c*Math.PI/.3))*18;
+        rot = Math.sin(t*1.5);
+      } else {
+        rot = Math.sin(t*1.2)*.8;
+      }
+    }
+    $('booCapa').setAttribute('transform',
+      `translate(1600 ${(1080+ty).toFixed(1)}) rotate(${rot.toFixed(2)}) scale(${(1+sq).toFixed(3)} ${(1-sq).toFixed(3)}) translate(-1600 -1080)`);
+  }
+
+  // Rayos alrededor del barril cuando el grito es fuerte
+  function bolt(x1,y1,x2,y2,spread){
+    let d = `M${x1.toFixed(0)},${y1.toFixed(0)}`;
+    for (let i=1;i<9;i++){
+      const k=i/9;
+      d += ` L${(x1+(x2-x1)*k+(Math.random()-.5)*spread).toFixed(0)},${(y1+(y2-y1)*k+(Math.random()-.5)*spread).toFixed(0)}`;
+    }
+    return d + ` L${x2.toFixed(0)},${y2.toFixed(0)}`;
+  }
+  function drawSparks(){
+    if (reduced || level < 55){ $('rayos').setAttribute('d', ''); return; }
+    const n = level >= 98 ? 6 : Math.floor((level-55)/12)+1;
+    let d = '';
+    for (let i=0;i<n;i++){
+      if (Math.random() < .55) continue;
+      const ang = Math.random()*Math.PI*2, rad = 260 + Math.random()*140;
+      const sx = 862 + (Math.random()-.5)*80, sy = 540 + (Math.random()-.5)*380;
+      d += bolt(sx, sy, 862 + Math.cos(ang)*rad*.8, 540 + Math.sin(ang)*rad*1.3, 40) + ' ';
+    }
+    $('rayos').setAttribute('d', d);
+  }
+
+  let globoActual = '';
+  function drawGlobo(vivo){
+    const msg = vivo && e.fase === 'resultado' ? (e.mensaje || '') : '';
+    if (msg === globoActual) return;
+    globoActual = msg;
+    const g = $('globo');
+    g.textContent = msg;
+    $('globoZona').setAttribute('visibility', msg ? 'visible' : 'hidden');
+    if (msg){ g.classList.remove('pop'); void g.offsetWidth; g.classList.add('pop'); booSalto = performance.now(); }
+  }
+
+  function drawPanel(vivo){
+    if (!vivo){
+      setFit('estado', 'Esperando…', 580);
+      setFit('ayuda', 'Toca el logo M para abrir los ajustes', 580);
+    } else if (!e.mic){
+      setFit('estado', 'Micrófono apagado', 580); setFit('ayuda', 'Toca el logo M y enciéndelo', 580);
+    } else if (e.fase === 'espera'){
+      setFit('estado', '¿Quién se atreve?', 580); setFit('ayuda', 'Toca a Boo para empezar a gritar', 580);
+    } else if (e.fase === 'resultado'){
+      setFit('estado', e.texto, 580); setFit('ayuda', 'Toca a Boo para volver a escuchar', 580);
+    } else {
+      setFit('estado', e.texto, 580); set('ayuda', '');
+    }
+    const resultado = vivo && e.fase === 'resultado';
+    const n = resultado ? e.pico : Math.round(level);
+    set('nivel', n);
+    $('nivel').setAttribute('fill', n >= 70 ? '#ff3b3b' : n >= 40 ? '#ffe14d' : '#ffffff');
+    set('etiqueta', resultado ? 'PUNTAJE' : 'NIVEL');
+    const enRonda = vivo && (e.fase === 'grita' || resultado);
+    set('picoTexto', enRonda ? `Pico de la ronda: ${e.pico}` : '');
+    const py = levelToY(enRonda ? e.pico : 0);
+    $('picoLinea').setAttribute('y1', py); $('picoLinea').setAttribute('y2', py);
+    $('picoLinea').setAttribute('opacity', enRonda && e.pico > 0 ? '.85' : '0');
+  }
+
+  function loop(){
+    t += 1/60;
+    const vivo = !!e && performance.now() - recibido < 4000;
+    const mic = vivo && e.mic;
+    const target = mic ? e.nivel : 0;
+    level += (target - level) * .5;
+    const objetivo = mic ? Math.max(e.sonido || 0, e.nivel/100) : 0;
+    energia += (objetivo - energia) * (objetivo > energia ? .35 : .08);
+    drawLiquid(); moveBarrel(mic); drawSparks(); drawPanel(vivo); drawGlobo(vivo); moveBoo(vivo);
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  // Celebración al llegar a 100
+  const BAT = '<svg viewBox="0 0 48 22"><path fill="#07040b" d="M0,10 C6,2 12,4 16,10 C18,6 20,6 22,4 L24,8 L26,4 C28,6 30,6 32,10 C36,4 42,2 48,10 C42,10 38,14 36,18 C32,14 28,16 24,20 C20,16 16,14 12,18 C10,14 6,10 0,10 Z"/></svg>';
+  function releaseBat(){
+    if (reduced) return;
+    const b = document.createElement('div');
+    b.className = 'bat'; b.innerHTML = BAT;
+    b.style.width = (40 + Math.random()*50) + 'px';
+    b.style.top = (20 + Math.random()*60) + 'vh';
+    b.style.setProperty('--dy', ((Math.random()-.5)*30) + 'vh');
+    const dur = 2 + Math.random()*1.5;
+    b.style.animationDuration = dur + 's';
+    b.firstChild.style.animationDuration = (.15 + Math.random()*.15) + 's';
+    $('bats').appendChild(b);
+    setTimeout(()=>b.remove(), dur*1000 + 200);
+  }
+  function celebrate(){
+    fiesta = performance.now() + 1800;
+    for (let i=0;i<14;i++) setTimeout(releaseBat, i*90);
+  }
+
+  // Logo → configuración. Si la configuración ya está abierta desde aquí, solo la enfoca
+  // (recargarla apagaría el micrófono); si no, la abre en otra pestaña.
+  function openConfig(){
+    const w = window.open('', 'gritometro-config');
+    if (!w) return;
+    let blank = true;
+    try { blank = w.location.href === 'about:blank'; } catch(err) { blank = false; }
+    if (blank) w.location.href = new URL('./', location.href).href; else w.focus();
+  }
+  $('logo').addEventListener('click', ev => { ev.stopPropagation(); openConfig(); });
+  $('logo').addEventListener('dblclick', ev => ev.stopPropagation());
+  $('logo').addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); openConfig(); } });
+
+  // Boo (o la barra espaciadora) inicia la siguiente ronda; la configuración decide si se puede
+  const iniciar = () => { canal.postMessage({ t:'iniciar' }); booSalto = performance.now(); };
+  $('boo').addEventListener('click', ev => { ev.stopPropagation(); iniciar(); });
+  $('boo').addEventListener('dblclick', ev => ev.stopPropagation());
+  $('boo').addEventListener('keydown', ev => { if (ev.key === 'Enter'){ ev.preventDefault(); iniciar(); } });
+
+  // Pantalla completa con doble clic o tecla F; el cursor se oculta si no se mueve
+  const toggleFs = () => { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(()=>{}); };
+  addEventListener('dblclick', toggleFs);
+  addEventListener('keydown', ev => {
+    if (ev.key === ' '){ ev.preventDefault(); iniciar(); }
+    else if ((ev.key === 'f' || ev.key === 'F') && ev.target === document.body) toggleFs();
+  });
+  let idleTimer;
+  addEventListener('mousemove', () => {
+    document.body.classList.remove('idle');
+    clearTimeout(idleTimer); idleTimer = setTimeout(() => document.body.classList.add('idle'), 2500);
+  });
+})();
+</script>
+</body>
+</html>
